@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "shadcn-vue-tauri-app",
-        "width": 800,
-        "height": 600
+        "title": "IC 제어 앱",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 1000,
+        "minHeight": 600
       }
     ],
     "security": {
