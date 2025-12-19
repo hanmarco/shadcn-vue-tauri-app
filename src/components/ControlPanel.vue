@@ -30,7 +30,7 @@ const serialStore = useSerialStore();
             <Badge variant="secondary">{{ controlStore.voltage.toFixed(2) }}V</Badge>
           </div>
           <Slider
-            v-model="controlStore.voltage"
+            :model-value="controlStore.voltage"
             :min="0"
             :max="5"
             :step="0.1"
@@ -59,7 +59,7 @@ const serialStore = useSerialStore();
             <Badge variant="secondary">{{ (controlStore.frequency / 1000).toFixed(0) }}kHz</Badge>
           </div>
           <Slider
-            v-model="controlStore.frequency"
+            :model-value="controlStore.frequency"
             :min="1000"
             :max="10000000"
             :step="1000"
