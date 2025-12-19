@@ -50,7 +50,6 @@ async function handleRefresh() {
               v-for="rate in baudRates"
               :key="rate"
               :value="rate"
-              @select="serialStore.baudRate = $event"
             >
               {{ rate }}
             </SelectItem>
@@ -68,7 +67,6 @@ async function handleRefresh() {
               v-for="p in parities"
               :key="p.value"
               :value="p.value"
-              @select="serialStore.parity = $event"
             >
               {{ p.label }}
             </SelectItem>
@@ -86,7 +84,6 @@ async function handleRefresh() {
               v-for="bits in stopBitsOptions"
               :key="bits"
               :value="bits"
-              @select="serialStore.stopBits = $event"
             >
               {{ bits }}
             </SelectItem>
@@ -104,7 +101,6 @@ async function handleRefresh() {
               v-for="bits in dataBitsOptions"
               :key="bits"
               :value="bits"
-              @select="serialStore.dataBits = $event"
             >
               {{ bits }}
             </SelectItem>

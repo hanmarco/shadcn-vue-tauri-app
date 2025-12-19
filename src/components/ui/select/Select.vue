@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, provide } from "vue";
 import { Primitive } from "reka-ui";
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon } from "lucide-vue-next";
@@ -19,6 +19,16 @@ const selectRef = ref(null);
 const value = computed({
   get: () => props.modelValue,
   set: (val) => emit("update:modelValue", val),
+});
+
+const onSelect = (val) => {
+  value.value = val;
+  isOpen.value = false;
+};
+
+provide("select-context", {
+  onSelect,
+  modelValue: computed(() => props.modelValue),
 });
 
 const toggle = () => {
