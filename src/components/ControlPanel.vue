@@ -6,14 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useControlStore } from "@/stores/control";
 import { useSerialStore } from "@/stores/serial";
-import { ActivityIcon, ZapIcon, GaugeIcon } from "lucide-vue-next";
+import { ActivityIcon, ZapIcon, GaugeIcon, CpuIcon } from "lucide-vue-next";
 
 const controlStore = useControlStore();
 const serialStore = useSerialStore();
 </script>
 
 <template>
-  <div class="grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-3">
+  <div class="grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-4">
     <!-- 전압 제어 -->
     <Card>
       <CardHeader>
@@ -34,9 +34,11 @@ const serialStore = useSerialStore();
             :min="0"
             :max="5"
             :step="0.1"
-            :disabled="!serialStore.isConnected"
             @update:model-value="controlStore.setVoltage"
           />
+          <p v-if="!serialStore.isConnected" class="text-xs text-muted-foreground">
+            시뮬레이션 모드 (장치 미연결)
+          </p>
         </div>
       </CardContent>
     </Card>
@@ -61,9 +63,43 @@ const serialStore = useSerialStore();
             :min="1000"
             :max="10000000"
             :step="1000"
-            :disabled="!serialStore.isConnected"
             @update:model-value="controlStore.setFrequency"
           />
+          <p v-if="!serialStore.isConnected" class="text-xs text-muted-foreground">
+            시뮬레이션 모드 (장치 미연결)
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+
+    <!-- 레지스터 제어 -->
+    <Card>
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2">
+          <CpuIcon class="h-5 w-5" />
+          레지스터 제어
+        </CardTitle>
+        <CardDescription>IC 레지스터 값 설정</CardDescription>
+      </CardHeader>
+      <CardContent class="space-y-4">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-muted-foreground">레지스터 값</span>
+            <Badge variant="secondary">0x{{ controlStore.registerValue.toString(16).toUpperCase().padStart(8, '0') }}</Badge>
+          </div>
+          <div class="flex gap-2">
+            <input
+              v-model.number="controlStore.registerValue"
+              type="number"
+              min="0"
+              max="4294967295"
+              class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              @input="controlStore.setRegisterValue(controlStore.registerValue)"
+            />
+          </div>
+          <p v-if="!serialStore.isConnected" class="text-xs text-muted-foreground">
+            시뮬레이션 모드 (장치 미연결)
+          </p>
         </div>
       </CardContent>
     </Card>
