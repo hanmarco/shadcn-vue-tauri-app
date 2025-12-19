@@ -9,6 +9,10 @@ import { UsbIcon, WifiIcon, ActivityIcon } from "lucide-vue-next";
 const serialStore = useSerialStore();
 
 async function handleDeviceClick(device) {
+  if (serialStore.isConnecting) {
+    return;
+  }
+  
   // 장치 이름에서 실제 포트 이름 추출 (예: "COM3 (VID:0403 PID:6010)" -> "COM3")
   const portName = device.split(" ")[0];
   if (serialStore.isConnected && serialStore.selectedDevice === device) {
@@ -42,6 +46,7 @@ onMounted(async () => {
               v-for="device in serialStore.connectedDevices"
               :key="device"
               :active="serialStore.selectedDevice === device"
+              :class="{ 'opacity-50 cursor-not-allowed': serialStore.isConnecting }"
               @click="handleDeviceClick(device)"
             >
               <UsbIcon class="h-4 w-4" />
@@ -52,6 +57,13 @@ onMounted(async () => {
                 class="ml-auto"
               >
                 연결됨
+              </Badge>
+              <Badge
+                v-else-if="serialStore.isConnecting && serialStore.selectedDevice === device"
+                variant="secondary"
+                class="ml-auto"
+              >
+                연결 중...
               </Badge>
             </SidebarItem>
           </div>

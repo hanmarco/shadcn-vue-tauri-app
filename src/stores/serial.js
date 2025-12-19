@@ -15,6 +15,8 @@ export const useSerialStore = defineStore("serial", () => {
   const receivedData = ref([]);
   const txEnabled = ref(false);
   const rxEnabled = ref(false);
+  const connectionError = ref(null);
+  const isConnecting = ref(false);
 
   // Getters
   const connectionStatus = computed(() => {
@@ -37,6 +39,13 @@ export const useSerialStore = defineStore("serial", () => {
   }
 
   async function connect(portName) {
+    if (isConnecting.value) {
+      return false;
+    }
+    
+    isConnecting.value = true;
+    connectionError.value = null;
+    
     try {
       await invoke("connect_serial", {
         portName,
@@ -47,11 +56,15 @@ export const useSerialStore = defineStore("serial", () => {
       });
       selectedDevice.value = portName;
       isConnected.value = true;
+      connectionError.value = null;
       return true;
     } catch (error) {
       console.error("Failed to connect:", error);
       isConnected.value = false;
+      connectionError.value = error.toString();
       return false;
+    } finally {
+      isConnecting.value = false;
     }
   }
 
@@ -114,6 +127,8 @@ export const useSerialStore = defineStore("serial", () => {
     receivedData,
     txEnabled,
     rxEnabled,
+    connectionError,
+    isConnecting,
     // Getters
     connectionStatus,
     // Actions

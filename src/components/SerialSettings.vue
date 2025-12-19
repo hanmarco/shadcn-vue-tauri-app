@@ -3,8 +3,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Select, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useSerialStore } from "@/stores/serial";
-import { RefreshCwIcon, PowerIcon } from "lucide-vue-next";
+import { RefreshCwIcon, PowerIcon, AlertCircleIcon, LoaderIcon } from "lucide-vue-next";
 
 const serialStore = useSerialStore();
 
@@ -113,16 +114,42 @@ async function handleRefresh() {
 
       <Separator />
 
+      <!-- 에러 메시지 표시 -->
+      <div v-if="serialStore.connectionError" class="rounded-md bg-destructive/10 border border-destructive/20 p-3">
+        <div class="flex items-center gap-2 text-destructive">
+          <AlertCircleIcon class="h-4 w-4" />
+          <span class="text-sm font-medium">연결 실패</span>
+        </div>
+        <p class="mt-1 text-sm text-destructive/80">{{ serialStore.connectionError }}</p>
+      </div>
+
       <div class="flex items-center gap-2">
         <Button
           :variant="serialStore.isConnected ? 'destructive' : 'default'"
           @click="handleConnect"
-          :disabled="!serialStore.selectedDevice"
+          :disabled="!serialStore.selectedDevice || serialStore.isConnecting"
         >
-          <PowerIcon class="mr-2 h-4 w-4" />
-          {{ serialStore.isConnected ? "연결 해제" : "연결" }}
+          <LoaderIcon
+            v-if="serialStore.isConnecting"
+            class="mr-2 h-4 w-4 animate-spin"
+          />
+          <PowerIcon
+            v-else
+            class="mr-2 h-4 w-4"
+          />
+          {{
+            serialStore.isConnecting
+              ? "연결 중..."
+              : serialStore.isConnected
+              ? "연결 해제"
+              : "연결"
+          }}
         </Button>
-        <Button variant="outline" @click="handleRefresh">
+        <Button
+          variant="outline"
+          @click="handleRefresh"
+          :disabled="serialStore.isConnecting"
+        >
           <RefreshCwIcon class="mr-2 h-4 w-4" />
           장치 새로고침
         </Button>

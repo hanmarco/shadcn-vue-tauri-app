@@ -26,33 +26,61 @@ struct AppState {
 
 #[tauri::command]
 fn scan_serial_devices() -> Vec<String> {
-    serialport::available_ports()
-        .unwrap_or_default()
-        .iter()
-        .map(|port_info| {
-            match &port_info.port_type {
-                SerialPortType::UsbPort(info) => {
-                    // FTDI 칩 감지 (VID:0403)
-                    if info.vid == 0x0403 {
-                        format!(
-                            "{} (FTDI VID:{:04X} PID:{:04X})",
-                            port_info.port_name,
-                            info.vid,
-                            info.pid
-                        )
-                    } else {
-                        format!(
-                            "{} (VID:{:04X} PID:{:04X})",
-                            port_info.port_name,
-                            info.vid,
-                            info.pid
-                        )
+    let mut available_ports = Vec::new();
+    
+    if let Ok(ports) = serialport::available_ports() {
+        for port_info in ports {
+            // Windows에서 COM1은 일반적으로 시스템 포트이므로 제외
+            #[cfg(windows)]
+            {
+                if port_info.port_name == "COM1" {
+                    // USB 포트가 아닌 경우에만 제외
+                    if !matches!(port_info.port_type, SerialPortType::UsbPort(_)) {
+                        continue;
                     }
                 }
-                _ => port_info.port_name.clone(),
             }
-        })
-        .collect()
+            
+            // 포트가 실제로 열 수 있는지 빠르게 테스트
+            let test_builder = serialport::new(&port_info.port_name, 9600)
+                .timeout(Duration::from_millis(100));
+            
+            // 포트 열기 테스트 (타임아웃 짧게 설정)
+            match test_builder.open() {
+                Ok(_) => {
+                    // 포트를 열 수 있으면 리스트에 추가
+                    let display_name = match &port_info.port_type {
+                        SerialPortType::UsbPort(info) => {
+                            // FTDI 칩 감지 (VID:0403)
+                            if info.vid == 0x0403 {
+                                format!(
+                                    "{} (FTDI VID:{:04X} PID:{:04X})",
+                                    port_info.port_name,
+                                    info.vid,
+                                    info.pid
+                                )
+                            } else {
+                                format!(
+                                    "{} (VID:{:04X} PID:{:04X})",
+                                    port_info.port_name,
+                                    info.vid,
+                                    info.pid
+                                )
+                            }
+                        }
+                        _ => port_info.port_name.clone(),
+                    };
+                    available_ports.push(display_name);
+                }
+                Err(_) => {
+                    // 포트를 열 수 없으면 스킵 (에러 무시)
+                    continue;
+                }
+            }
+        }
+    }
+    
+    available_ports
 }
 
 #[tauri::command]
@@ -96,15 +124,34 @@ fn connect_serial(
         _ => serialport::DataBits::Eight,
     };
 
-    // 시리얼 포트 열기
-    let builder = serialport::new(&port_name, baud_rate)
-        .parity(parity_setting)
-        .stop_bits(stop_bits_setting)
-        .data_bits(data_bits_setting)
-        .timeout(Duration::from_millis(1000));
-
-    match builder.open() {
-        Ok(port) => {
+    // 시리얼 포트 열기 (타임아웃 설정)
+    // 연결 시도를 별도 스레드에서 실행하여 블로킹 방지
+    let port_name_clone = port_name.clone();
+    let parity_setting_clone = parity_setting;
+    let stop_bits_setting_clone = stop_bits_setting;
+    let data_bits_setting_clone = data_bits_setting;
+    let (tx, rx) = std::sync::mpsc::channel();
+    
+    thread::spawn(move || {
+        let builder = serialport::new(&port_name_clone, baud_rate)
+            .parity(parity_setting_clone)
+            .stop_bits(stop_bits_setting_clone)
+            .data_bits(data_bits_setting_clone)
+            .timeout(Duration::from_millis(1000));
+            
+        match builder.open() {
+            Ok(port) => {
+                let _ = tx.send(Ok(port));
+            }
+            Err(e) => {
+                let _ = tx.send(Err(format!("Failed to open serial port {}: {}", port_name_clone, e)));
+            }
+        }
+    });
+    
+    // 최대 2초 대기
+    match rx.recv_timeout(Duration::from_secs(2)) {
+        Ok(Ok(port)) => {
             let port_arc = Arc::new(Mutex::new(port));
             serial_state.port = Some(port_arc.clone());
             
@@ -139,7 +186,8 @@ fn connect_serial(
             serial_state.reader_thread = Some(handle);
             Ok(())
         }
-        Err(e) => Err(format!("Failed to open serial port: {}", e)),
+        Ok(Err(e)) => Err(e),
+        Err(_) => Err(format!("Connection timeout: Failed to open serial port {} within 2 seconds", port_name)),
     }
 }
 
