@@ -265,6 +265,43 @@ async fn set_register(state: tauri::State<'_, AppState>, value: u32) -> Result<(
 }
 
 #[tauri::command]
+async fn read_register(state: tauri::State<'_, AppState>, address: u32) -> Result<u32, String> {
+    let serial_state = state.serial.lock().map_err(|e| e.to_string())?;
+    if let Some(ref port_arc) = serial_state.port {
+        let mut port = port_arc.lock().map_err(|e| e.to_string())?;
+        let cmd = format!("RREG:0x{:02X}\n", address);
+        port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
+        port.flush().map_err(|e| e.to_string())?;
+
+        // Note: Real implementation would wait for response from IC
+        // Here we just return a dummy value or simulate the read
+        println!("Sent command: {}", cmd.trim());
+        Ok(0) // Dummy response
+    } else {
+        Err("Serial port is not connected".into())
+    }
+}
+
+#[tauri::command]
+async fn write_register(
+    state: tauri::State<'_, AppState>,
+    address: u32,
+    value: u32,
+) -> Result<(), String> {
+    let serial_state = state.serial.lock().map_err(|e| e.to_string())?;
+    if let Some(ref port_arc) = serial_state.port {
+        let mut port = port_arc.lock().map_err(|e| e.to_string())?;
+        let cmd = format!("WREG:0x{:02X},0x{:02X}\n", address, value);
+        port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
+        port.flush().map_err(|e| e.to_string())?;
+        println!("Sent command: {}", cmd.trim());
+        Ok(())
+    } else {
+        Err("Serial port is not connected".into())
+    }
+}
+
+#[tauri::command]
 fn save_log_to_file(path: String, content: String) -> Result<(), String> {
     let mut file = File::create(&path).map_err(|e| format!("Failed to create file: {}", e))?;
     file.write_all(content.as_bytes())
@@ -289,6 +326,8 @@ pub fn run() {
             set_voltage,
             set_frequency,
             set_register,
+            read_register,
+            write_register,
             save_log_to_file
         ])
         .run(tauri::generate_context!())
