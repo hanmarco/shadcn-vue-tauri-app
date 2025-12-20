@@ -1,8 +1,11 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/plugin-dialog";
+import { LazyStore } from "@tauri-apps/plugin-store";
+
+const store = new LazyStore("settings.json");
 
 export const useSerialStore = defineStore("serial", () => {
   // State
@@ -22,6 +25,54 @@ export const useSerialStore = defineStore("serial", () => {
   // Throttling state
   const pendingData = ref([]);
   let throttleTimeout = null;
+
+  // Persistence logic
+  const SETTINGS_KEY = "serial-settings";
+  const isLoading = ref(false);
+
+  async function loadSettings() {
+    isLoading.value = true;
+    try {
+      console.log("Loading settings...");
+      const saved = await store.get(SETTINGS_KEY);
+      if (saved) {
+        console.log("Restoring saved settings:", saved);
+        baudRate.value = saved.baudRate || 9600;
+        parity.value = saved.parity || "none";
+        stopBits.value = saved.stopBits || 1;
+        dataBits.value = saved.dataBits || 8;
+      } else {
+        console.log("No saved settings found.");
+      }
+    } catch (error) {
+      console.error("Failed to load settings:", error);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function saveSettings() {
+    if (isLoading.value) return;
+
+    try {
+      console.log("Saving settings...");
+      await store.set(SETTINGS_KEY, {
+        baudRate: baudRate.value,
+        parity: parity.value,
+        stopBits: stopBits.value,
+        dataBits: dataBits.value,
+      });
+      await store.save();
+      console.log("Settings saved successfully.");
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+    }
+  }
+
+  // Watch for changes and save
+  watch([baudRate, parity, stopBits, dataBits], () => {
+    saveSettings();
+  });
 
   // Actions
   async function scanDevices() {
@@ -190,6 +241,7 @@ export const useSerialStore = defineStore("serial", () => {
     clearReceivedData,
     exportLogs,
     setupEventListeners,
+    loadSettings,
   };
 });
 

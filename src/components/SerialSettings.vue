@@ -1,4 +1,5 @@
 <script setup>
+import { onMounted } from "vue";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Select, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,12 @@ import { useSerialStore } from "@/stores/serial";
 import { RefreshCwIcon, PowerIcon, AlertCircleIcon, LoaderIcon } from "lucide-vue-next";
 
 const serialStore = useSerialStore();
+
+onMounted(async () => {
+  await serialStore.loadSettings();
+  await serialStore.scanDevices();
+  await serialStore.setupEventListeners();
+});
 
 const baudRates = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
 const parities = [
@@ -26,7 +33,7 @@ async function handleConnect() {
   }
 }
 
-async function handleRefresh() {
+const handleRefresh = async () => {
   await serialStore.scanDevices();
 }
 </script>
