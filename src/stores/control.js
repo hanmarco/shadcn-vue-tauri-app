@@ -1,7 +1,10 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { useSerialStore } from "./serial";
+import { LazyStore } from "@tauri-apps/plugin-store";
+
+const store = new LazyStore("control_settings.json");
 
 export const useControlStore = defineStore("control", () => {
   const serialStore = useSerialStore();
@@ -10,6 +13,45 @@ export const useControlStore = defineStore("control", () => {
   const voltage = ref(3.3);
   const frequency = ref(1000000); // 1MHz
   const registerValue = ref(0);
+
+  // Persistence logic
+  const CONTROL_KEY = "ic-controls";
+  const isLoading = ref(false);
+
+  async function loadControlSettings() {
+    isLoading.value = true;
+    try {
+      const saved = await store.get(CONTROL_KEY);
+      if (saved) {
+        voltage.value = saved.voltage ?? 3.3;
+        frequency.value = saved.frequency ?? 1000000;
+        registerValue.value = saved.registerValue ?? 0;
+      }
+    } catch (error) {
+      console.error("Failed to load control settings:", error);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function saveControlSettings() {
+    if (isLoading.value) return;
+    try {
+      await store.set(CONTROL_KEY, {
+        voltage: voltage.value,
+        frequency: frequency.value,
+        registerValue: registerValue.value,
+      });
+      await store.save();
+    } catch (error) {
+      console.error("Failed to save control settings:", error);
+    }
+  }
+
+  // Watch for changes and save (sliders move these immediately)
+  watch([voltage, frequency, registerValue], () => {
+    saveControlSettings();
+  });
 
   // Actions
   async function setVoltage(value) {
@@ -65,6 +107,7 @@ export const useControlStore = defineStore("control", () => {
     setVoltage,
     setFrequency,
     setRegisterValue,
+    loadControlSettings,
   };
 });
 

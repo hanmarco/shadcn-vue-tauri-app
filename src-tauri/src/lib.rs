@@ -220,24 +220,48 @@ fn send_serial_data(data: String, state: tauri::State<AppState>) -> Result<(), S
 }
 
 #[tauri::command]
-fn set_voltage(value: f64) -> Result<(), String> {
-    // TODO: 실제 IC 제어 로직 구현
-    println!("Setting voltage to: {}V", value);
-    Ok(())
+async fn set_voltage(state: tauri::State<'_, AppState>, value: f64) -> Result<(), String> {
+    let serial_state = state.serial.lock().map_err(|e| e.to_string())?;
+    if let Some(ref port_arc) = serial_state.port {
+        let mut port = port_arc.lock().map_err(|e| e.to_string())?;
+        let cmd = format!("VOLT:{:.2}\n", value);
+        port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
+        port.flush().map_err(|e| e.to_string())?;
+        println!("Sent command: {}", cmd.trim());
+        Ok(())
+    } else {
+        Err("Serial port is not connected".into())
+    }
 }
 
 #[tauri::command]
-fn set_frequency(value: u64) -> Result<(), String> {
-    // TODO: 실제 IC 제어 로직 구현
-    println!("Setting frequency to: {}Hz", value);
-    Ok(())
+async fn set_frequency(state: tauri::State<'_, AppState>, value: u64) -> Result<(), String> {
+    let serial_state = state.serial.lock().map_err(|e| e.to_string())?;
+    if let Some(ref port_arc) = serial_state.port {
+        let mut port = port_arc.lock().map_err(|e| e.to_string())?;
+        let cmd = format!("FREQ:{}\n", value);
+        port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
+        port.flush().map_err(|e| e.to_string())?;
+        println!("Sent command: {}", cmd.trim());
+        Ok(())
+    } else {
+        Err("Serial port is not connected".into())
+    }
 }
 
 #[tauri::command]
-fn set_register(value: u32) -> Result<(), String> {
-    // TODO: 실제 IC 제어 로직 구현
-    println!("Setting register to: 0x{:X}", value);
-    Ok(())
+async fn set_register(state: tauri::State<'_, AppState>, value: u32) -> Result<(), String> {
+    let serial_state = state.serial.lock().map_err(|e| e.to_string())?;
+    if let Some(ref port_arc) = serial_state.port {
+        let mut port = port_arc.lock().map_err(|e| e.to_string())?;
+        let cmd = format!("REG:0x{:08X}\n", value);
+        port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
+        port.flush().map_err(|e| e.to_string())?;
+        println!("Sent command: {}", cmd.trim());
+        Ok(())
+    } else {
+        Err("Serial port is not connected".into())
+    }
 }
 
 #[tauri::command]
