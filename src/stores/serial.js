@@ -2,7 +2,6 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { toast } from "vue-sonner";
 
 export const useSerialStore = defineStore("serial", () => {
   // State
@@ -52,13 +51,11 @@ export const useSerialStore = defineStore("serial", () => {
       selectedDevice.value = portName;
       isConnected.value = true;
       connectionError.value = null;
-      toast.success(`${portName}에 연결되었습니다.`);
       return true;
     } catch (error) {
       console.error("Failed to connect:", error);
       isConnected.value = false;
       connectionError.value = error.toString();
-      toast.error(`연결 실패: ${error}`);
       return false;
     } finally {
       isConnecting.value = false;
@@ -68,21 +65,17 @@ export const useSerialStore = defineStore("serial", () => {
   async function disconnect() {
     try {
       await invoke("disconnect_serial");
-      const device = selectedDevice.value;
       isConnected.value = false;
       selectedDevice.value = null;
-      toast.info(`${device} 연결이 해제되었습니다.`);
       return true;
     } catch (error) {
       console.error("Failed to disconnect:", error);
-      toast.error("연결 해제 실패");
       return false;
     }
   }
 
   async function sendData(data) {
     if (!isConnected.value) {
-      toast.error("장치가 연결되어 있지 않습니다.");
       return false;
     }
     try {
@@ -90,7 +83,6 @@ export const useSerialStore = defineStore("serial", () => {
       return true;
     } catch (error) {
       console.error("Failed to send data:", error);
-      toast.error("데이터 전송 실패");
       return false;
     }
   }
@@ -131,7 +123,6 @@ export const useSerialStore = defineStore("serial", () => {
 
   function clearReceivedData() {
     receivedData.value = [];
-    toast.success("로그 기록이 삭제되었습니다.");
   }
 
   // Event listener 설정

@@ -4,7 +4,6 @@ import MainLayout from "@/components/layouts/MainLayout.vue";
 import SerialSettings from "@/components/SerialSettings.vue";
 import ControlPanel from "@/components/ControlPanel.vue";
 import DataTable from "@/components/DataTable.vue";
-import Toaster from "@/components/ui/sonner/Sonner.vue";
 </script>
 
 <template>
@@ -14,6 +13,5 @@ import Toaster from "@/components/ui/sonner/Sonner.vue";
       <ControlPanel />
       <DataTable />
     </div>
-    <Toaster />
   </MainLayout>
 </template>
