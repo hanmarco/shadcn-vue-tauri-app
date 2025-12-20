@@ -1,7 +1,9 @@
+use serialport::{SerialPort, SerialPortType};
+use std::fs::File;
+use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use serialport::{SerialPortType, SerialPort};
 use tauri::{AppHandle, Emitter};
 
 // 시리얼 포트 상태 관리
@@ -27,7 +29,7 @@ struct AppState {
 #[tauri::command]
 fn scan_serial_devices() -> Vec<String> {
     let mut available_ports = Vec::new();
-    
+
     if let Ok(ports) = serialport::available_ports() {
         for port_info in ports {
             // Windows에서 COM1은 일반적으로 시스템 포트이므로 제외
@@ -40,11 +42,11 @@ fn scan_serial_devices() -> Vec<String> {
                     }
                 }
             }
-            
+
             // 포트가 실제로 열 수 있는지 빠르게 테스트
-            let test_builder = serialport::new(&port_info.port_name, 9600)
-                .timeout(Duration::from_millis(100));
-            
+            let test_builder =
+                serialport::new(&port_info.port_name, 9600).timeout(Duration::from_millis(100));
+
             // 포트 열기 테스트 (타임아웃 짧게 설정)
             match test_builder.open() {
                 Ok(_) => {
@@ -55,16 +57,12 @@ fn scan_serial_devices() -> Vec<String> {
                             if info.vid == 0x0403 {
                                 format!(
                                     "{} (FTDI VID:{:04X} PID:{:04X})",
-                                    port_info.port_name,
-                                    info.vid,
-                                    info.pid
+                                    port_info.port_name, info.vid, info.pid
                                 )
                             } else {
                                 format!(
                                     "{} (VID:{:04X} PID:{:04X})",
-                                    port_info.port_name,
-                                    info.vid,
-                                    info.pid
+                                    port_info.port_name, info.vid, info.pid
                                 )
                             }
                         }
@@ -79,7 +77,7 @@ fn scan_serial_devices() -> Vec<String> {
             }
         }
     }
-    
+
     available_ports
 }
 
@@ -131,30 +129,33 @@ fn connect_serial(
     let stop_bits_setting_clone = stop_bits_setting;
     let data_bits_setting_clone = data_bits_setting;
     let (tx, rx) = std::sync::mpsc::channel();
-    
+
     thread::spawn(move || {
         let builder = serialport::new(&port_name_clone, baud_rate)
             .parity(parity_setting_clone)
             .stop_bits(stop_bits_setting_clone)
             .data_bits(data_bits_setting_clone)
             .timeout(Duration::from_millis(1000));
-            
+
         match builder.open() {
             Ok(port) => {
                 let _ = tx.send(Ok(port));
             }
             Err(e) => {
-                let _ = tx.send(Err(format!("Failed to open serial port {}: {}", port_name_clone, e)));
+                let _ = tx.send(Err(format!(
+                    "Failed to open serial port {}: {}",
+                    port_name_clone, e
+                )));
             }
         }
     });
-    
+
     // 최대 2초 대기
     match rx.recv_timeout(Duration::from_secs(2)) {
         Ok(Ok(port)) => {
             let port_arc = Arc::new(Mutex::new(port));
             serial_state.port = Some(port_arc.clone());
-            
+
             // 백그라운드에서 데이터 읽기 시작
             let app_clone = app.clone();
             let port_clone = port_arc.clone();
@@ -165,7 +166,7 @@ fn connect_serial(
                         Ok(guard) => guard,
                         Err(_) => break,
                     };
-                    
+
                     match port_guard.read(&mut buffer) {
                         Ok(bytes_read) if bytes_read > 0 => {
                             let data = String::from_utf8_lossy(&buffer[..bytes_read]);
@@ -177,17 +178,20 @@ fn connect_serial(
                         }
                         Err(_) => break,
                     }
-                    
+
                     drop(port_guard);
                     thread::sleep(Duration::from_millis(10));
                 }
             });
-            
+
             serial_state.reader_thread = Some(handle);
             Ok(())
         }
         Ok(Err(e)) => Err(e),
-        Err(_) => Err(format!("Connection timeout: Failed to open serial port {} within 2 seconds", port_name)),
+        Err(_) => Err(format!(
+            "Connection timeout: Failed to open serial port {} within 2 seconds",
+            port_name
+        )),
     }
 }
 
@@ -204,7 +208,7 @@ fn disconnect_serial(state: tauri::State<AppState>) -> Result<(), String> {
 #[tauri::command]
 fn send_serial_data(data: String, state: tauri::State<AppState>) -> Result<(), String> {
     let serial_state = state.serial.lock().map_err(|e| e.to_string())?;
-    
+
     if let Some(ref port_arc) = serial_state.port {
         let mut port = port_arc.lock().map_err(|e| e.to_string())?;
         port.write(data.as_bytes())
@@ -236,10 +240,19 @@ fn set_register(value: u32) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn save_log_to_file(path: String, content: String) -> Result<(), String> {
+    let mut file = File::create(&path).map_err(|e| format!("Failed to create file: {}", e))?;
+    file.write_all(content.as_bytes())
+        .map_err(|e| format!("Failed to write to file: {}", e))?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             serial: Mutex::new(SerialState::new()),
         })
@@ -250,7 +263,8 @@ pub fn run() {
             send_serial_data,
             set_voltage,
             set_frequency,
-            set_register
+            set_register,
+            save_log_to_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

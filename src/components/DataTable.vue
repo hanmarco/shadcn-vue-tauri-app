@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useSerialStore } from "@/stores/serial";
-import { Trash2Icon, ArrowUpIcon, ArrowDownIcon } from "lucide-vue-next";
+import { Trash2Icon, ArrowUpIcon, ArrowDownIcon, DownloadIcon } from "lucide-vue-next";
 
 const serialStore = useSerialStore();
 const sortColumn = ref("timestamp");
@@ -68,10 +68,16 @@ watch(() => sortedData.value.length, () => {
     <CardHeader>
       <div class="flex items-center justify-between">
         <CardTitle>수신 데이터 로그</CardTitle>
-        <Button variant="outline" size="sm" @click="clearData">
-          <Trash2Icon class="mr-2 h-4 w-4" />
-          지우기
-        </Button>
+        <div class="flex gap-2">
+          <Button variant="outline" size="sm" @click="serialStore.exportLogs">
+            <DownloadIcon class="mr-2 h-4 w-4" />
+            내보내기
+          </Button>
+          <Button variant="outline" size="sm" @click="clearData">
+            <Trash2Icon class="mr-2 h-4 w-4" />
+            지우기
+          </Button>
+        </div>
       </div>
     </CardHeader>
     <CardContent class="flex-1 overflow-hidden p-0">

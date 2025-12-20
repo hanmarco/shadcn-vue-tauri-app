@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { save } from "@tauri-apps/plugin-dialog";
 
 export const useSerialStore = defineStore("serial", () => {
   // State
@@ -125,6 +126,42 @@ export const useSerialStore = defineStore("serial", () => {
     receivedData.value = [];
   }
 
+  async function exportLogs() {
+    if (receivedData.value.length === 0) {
+      alert("내보낼 로그 데이터가 없습니다.");
+      return;
+    }
+
+    try {
+      const path = await save({
+        filters: [
+          { name: "CSV", extensions: ["csv"] },
+          { name: "JSON", extensions: ["json"] },
+        ],
+        defaultPath: `serial_log_${new Date().toISOString().replace(/[:.]/g, "-")}.csv`,
+      });
+
+      if (!path) return;
+
+      let content = "";
+      if (path.endsWith(".json")) {
+        content = JSON.stringify(receivedData.value, null, 2);
+      } else {
+        // CSV Format: Timestamp, Data
+        content = "Timestamp,Data\n";
+        content += receivedData.value
+          .map((item) => `"${item.timestamp}","${item.data.replace(/"/g, '""')}"`)
+          .join("\n");
+      }
+
+      await invoke("save_log_to_file", { path, content });
+      alert("로그가 성공적으로 저장되었습니다.");
+    } catch (error) {
+      console.error("Failed to export logs:", error);
+      alert(`저장 실패: ${error}`);
+    }
+  }
+
   // Event listener 설정
   async function setupEventListeners() {
     await listen("serial-data-received", (event) => {
@@ -151,6 +188,7 @@ export const useSerialStore = defineStore("serial", () => {
     sendData,
     addReceivedData,
     clearReceivedData,
+    exportLogs,
     setupEventListeners,
   };
 });
