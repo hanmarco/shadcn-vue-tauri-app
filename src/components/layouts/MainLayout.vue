@@ -3,6 +3,7 @@ import { onMounted } from "vue";
 import { Sidebar, SidebarHeader, SidebarContent, SidebarItem } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useSerialStore } from "@/stores/serial";
 import { 
   SettingsIcon, 
@@ -72,6 +73,22 @@ onMounted(async () => {
           </div>
         </div>
 
+        <!-- Simulation Toggle at Bottom -->
+        <div class="mt-auto border-t p-4 pb-8">
+          <div class="flex items-center justify-between rounded-lg bg-muted/40 p-4 border border-dashed border-primary/20">
+            <div class="space-y-0.5">
+              <label class="text-xs font-bold uppercase tracking-wider text-primary">Simulation</label>
+              <p class="text-[10px] text-muted-foreground italic">Virtual Core Mode</p>
+            </div>
+            <Switch
+              :model-value="serialStore.isSimulationMode"
+              @update:model-value="(val) => {
+                serialStore.isSimulationMode = val;
+                serialStore.scanDevices();
+              }"
+            />
+          </div>
+        </div>
       </SidebarContent>
     </Sidebar>
 

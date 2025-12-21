@@ -49,7 +49,11 @@ function getFieldValue(regValue, field) {
       </div>
       <div v-if="!serialStore.isConnected" class="flex items-center gap-2 text-destructive text-sm font-medium animate-pulse">
         <InfoIcon class="h-4 w-4" />
-        장치 연결이 필요합니다 (현재 시뮬레이션 모드)
+        장치 연결 필요 (오프라인)
+      </div>
+      <div v-else-if="serialStore.selectedDevice === serialStore.VIRTUAL_DEVICE" class="flex items-center gap-2 text-primary text-sm font-medium animate-pulse">
+        <CpuIcon class="h-4 w-4" />
+        VIRTUAL SIMULATION ACTIVE
       </div>
     </div>
 
@@ -184,9 +188,9 @@ function getFieldValue(regValue, field) {
                       <div class="flex items-center gap-4">
                         <template v-if="field.size === 1">
                           <Switch 
-                            :checked="getFieldValue(registerStore.selectedRegister.value, field) === 1"
+                            :model-value="getFieldValue(registerStore.selectedRegister.value, field) === 1"
                             :disabled="registerStore.selectedRegister.readOnly"
-                            @update:checked="toggleBit(field, getFieldValue(registerStore.selectedRegister.value, field))"
+                            @update:model-value="toggleBit(field, getFieldValue(registerStore.selectedRegister.value, field))"
                           />
                         </template>
                         <template v-else>

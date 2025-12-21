@@ -21,6 +21,8 @@ export const useSerialStore = defineStore("serial", () => {
   const rxEnabled = ref(false);
   const connectionError = ref(null);
   const isConnecting = ref(false);
+  const isSimulationMode = ref(false);
+  const VIRTUAL_DEVICE = "Virtual Simulator (SIM)";
 
   // Throttling state
   const pendingData = ref([]);
@@ -28,6 +30,7 @@ export const useSerialStore = defineStore("serial", () => {
 
   // Persistence logic
   const SETTINGS_KEY = "serial-settings";
+  const SIMULATION_KEY = "simulation-mode";
   const isLoading = ref(false);
 
   async function loadSettings() {
@@ -41,8 +44,11 @@ export const useSerialStore = defineStore("serial", () => {
         parity.value = saved.parity || "none";
         stopBits.value = saved.stopBits || 1;
         dataBits.value = saved.dataBits || 8;
-      } else {
-        console.log("No saved settings found.");
+      }
+
+      const simMode = await store.get(SIMULATION_KEY);
+      if (simMode !== null) {
+        isSimulationMode.value = !!simMode;
       }
     } catch (error) {
       console.error("Failed to load settings:", error);
@@ -62,6 +68,7 @@ export const useSerialStore = defineStore("serial", () => {
         stopBits: stopBits.value,
         dataBits: dataBits.value,
       });
+      await store.set(SIMULATION_KEY, isSimulationMode.value);
       await store.save();
       console.log("Settings saved successfully.");
     } catch (error) {
@@ -70,14 +77,22 @@ export const useSerialStore = defineStore("serial", () => {
   }
 
   // Watch for changes and save
-  watch([baudRate, parity, stopBits, dataBits], () => {
+  watch([baudRate, parity, stopBits, dataBits, isSimulationMode], () => {
     saveSettings();
   });
 
   // Actions
   async function scanDevices() {
     try {
-      const devices = await invoke("scan_serial_devices");
+      let devices = [];
+      if (!isSimulationMode.value) {
+        devices = await invoke("scan_serial_devices");
+      }
+
+      if (isSimulationMode.value) {
+        devices = [VIRTUAL_DEVICE];
+      }
+
       connectedDevices.value = devices || [];
       return devices;
     } catch (error) {
@@ -93,6 +108,14 @@ export const useSerialStore = defineStore("serial", () => {
     connectionError.value = null;
 
     try {
+      if (portName === VIRTUAL_DEVICE) {
+        // Simulation mode: artificial delay
+        await new Promise(resolve => setTimeout(resolve, 800));
+        selectedDevice.value = portName;
+        isConnected.value = true;
+        return true;
+      }
+
       await invoke("connect_serial", {
         portName,
         baudRate: baudRate.value,
@@ -116,6 +139,12 @@ export const useSerialStore = defineStore("serial", () => {
 
   async function disconnect() {
     try {
+      if (selectedDevice.value === VIRTUAL_DEVICE) {
+        isConnected.value = false;
+        selectedDevice.value = null;
+        return true;
+      }
+
       await invoke("disconnect_serial");
       isConnected.value = false;
       selectedDevice.value = null;
@@ -130,6 +159,16 @@ export const useSerialStore = defineStore("serial", () => {
     if (!isConnected.value) {
       return false;
     }
+
+    if (selectedDevice.value === VIRTUAL_DEVICE) {
+      // Mock response for simulation
+      const mockResponse = `[SIM] ACK: Received "${data.trim()}" at ${new Date().toLocaleTimeString()}`;
+      setTimeout(() => {
+        addReceivedData(mockResponse);
+      }, 100);
+      return true;
+    }
+
     try {
       await invoke("send_serial_data", { data });
       return true;
@@ -233,6 +272,8 @@ export const useSerialStore = defineStore("serial", () => {
     rxEnabled,
     connectionError,
     isConnecting,
+    isSimulationMode,
+    VIRTUAL_DEVICE,
     scanDevices,
     connect,
     disconnect,

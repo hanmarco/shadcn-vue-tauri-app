@@ -66,7 +66,10 @@ onMounted(async () => {
             전압 전송
           </Button>
           <p v-if="!serialStore.isConnected" class="text-[10px] text-center text-muted-foreground italic">
-            시뮬레이션 모드 (장치 미연결)
+            장치 연결 필요 (오프라인)
+          </p>
+          <p v-else-if="serialStore.selectedDevice === serialStore.VIRTUAL_DEVICE" class="text-[10px] text-center text-primary font-medium animate-pulse">
+            VIRTUAL SIMULATION ACTIVE
           </p>
         </div>
       </CardContent>
@@ -118,7 +121,10 @@ onMounted(async () => {
             주파수 전송
           </Button>
           <p v-if="!serialStore.isConnected" class="text-[10px] text-center text-muted-foreground italic">
-            시뮬레이션 모드 (장치 미연결)
+            장치 연결 필요 (오프라인)
+          </p>
+          <p v-else-if="serialStore.selectedDevice === serialStore.VIRTUAL_DEVICE" class="text-[10px] text-center text-primary font-medium animate-pulse">
+            VIRTUAL SIMULATION ACTIVE
           </p>
         </div>
       </CardContent>
@@ -161,7 +167,10 @@ onMounted(async () => {
             레지스터 쓰기
           </Button>
           <p v-if="!serialStore.isConnected" class="text-[10px] text-center text-muted-foreground italic">
-            시뮬레이션 모드 (장치 미연결)
+            장치 연결 필요 (오프라인)
+          </p>
+          <p v-else-if="serialStore.selectedDevice === serialStore.VIRTUAL_DEVICE" class="text-[10px] text-center text-primary font-medium animate-pulse">
+            VIRTUAL SIMULATION ACTIVE
           </p>
         </div>
       </CardContent>
