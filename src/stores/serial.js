@@ -183,20 +183,24 @@ export const useSerialStore = defineStore("serial", () => {
     if (pendingData.value.length === 0) return;
 
     const timestamp = new Date().toISOString();
-    // Batch all pending data into entries
-    pendingData.value.forEach(data => {
-      receivedData.value.push({
-        timestamp,
-        data,
-      });
-    });
 
-    pendingData.value = [];
+    // Create new entries with unique IDs
+    const newEntries = pendingData.value.map((data, index) => ({
+      id: `${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp,
+      data,
+    }));
+
+    // Update state with a new array reference to ensure reactivity
+    let updatedData = [...receivedData.value, ...newEntries];
 
     // Keep only last 10,000 items
-    if (receivedData.value.length > 10000) {
-      receivedData.value.splice(0, receivedData.value.length - 10000);
+    if (updatedData.length > 10000) {
+      updatedData = updatedData.slice(updatedData.length - 10000);
     }
+
+    receivedData.value = updatedData;
+    pendingData.value = [];
 
     throttleTimeout = null;
   }

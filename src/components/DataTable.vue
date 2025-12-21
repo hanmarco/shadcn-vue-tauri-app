@@ -1,7 +1,5 @@
 <script setup>
-import { ref, computed, watch } from "vue";
-import { useVirtualizer } from "@tanstack/vue-virtual";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ref, computed, watch, nextTick } from "vue";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useSerialStore } from "@/stores/serial";
@@ -10,7 +8,7 @@ import { Trash2Icon, ArrowUpIcon, ArrowDownIcon, DownloadIcon } from "lucide-vue
 const serialStore = useSerialStore();
 const sortColumn = ref("timestamp");
 const sortDirection = ref("desc");
-const parentRef = ref(null);
+const scrollContainer = ref(null);
 
 const sortedData = computed(() => {
   const data = [...serialStore.receivedData];
@@ -24,13 +22,6 @@ const sortedData = computed(() => {
     });
   }
   return data;
-});
-
-const rowVirtualizer = useVirtualizer({
-  count: computed(() => sortedData.value.length),
-  getScrollElement: () => parentRef.value?.$el?.querySelector('[data-radix-scroll-area-viewport]'),
-  estimateSize: () => 45, // Estimated row height
-  overscan: 10,
 });
 
 function toggleSort(column) {
@@ -55,10 +46,13 @@ function clearData() {
   serialStore.clearReceivedData();
 }
 
-// Watch for data changes to scroll to bottom if needed (optional)
-watch(() => sortedData.value.length, () => {
-  if (sortDirection.value === "desc") {
-    // Usually we want to stay at the top if newest is at the top
+// Auto-scroll to bottom when new data arrives
+watch(() => serialStore.receivedData.length, async () => {
+  if (sortDirection.value === "asc") { // Scroll only if newest is at bottom
+    await nextTick();
+    if (scrollContainer.value) {
+      scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight;
+    }
   }
 });
 </script>
@@ -80,75 +74,82 @@ watch(() => sortedData.value.length, () => {
         </div>
       </div>
     </CardHeader>
-    <CardContent class="flex-1 overflow-hidden p-0">
-      <ScrollArea ref="parentRef" class="h-full w-full">
-        <div class="relative w-full" :style="{ height: `${rowVirtualizer.getTotalSize()}px` }">
-          <table class="w-full border-collapse">
-            <thead class="sticky top-0 z-10 bg-background border-b">
-              <tr>
-                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground w-1/4">
-                  <Button
-                    variant="ghost"
-                    class="h-auto p-0 font-medium"
-                    @click="toggleSort('timestamp')"
-                  >
-                    시간
-                    <ArrowUpIcon
-                      v-if="sortColumn === 'timestamp' && sortDirection === 'asc'"
-                      class="ml-2 h-4 w-4"
-                    />
-                    <ArrowDownIcon
-                      v-else-if="sortColumn === 'timestamp' && sortDirection === 'desc'"
-                      class="ml-2 h-4 w-4"
-                    />
-                  </Button>
-                </th>
-                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                  데이터
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="virtualRow in rowVirtualizer.getVirtualItems()"
-                :key="virtualRow.key"
-                :data-index="virtualRow.index"
-                class="absolute left-0 w-full border-b transition-colors hover:bg-muted/50 flex"
-                :style="{
-                  height: `${virtualRow.size}px`,
-                  transform: `translateY(${virtualRow.start}px)`,
-                  top: '48px' /* Height of thead */
-                }"
-              >
-                <td class="p-4 align-middle w-1/4 truncate">{{ formatTimestamp(sortedData[virtualRow.index].timestamp) }}</td>
-                <td class="p-4 align-middle font-mono text-sm flex-1 truncate">{{ formatData(sortedData[virtualRow.index].data) }}</td>
-              </tr>
-              <tr v-if="sortedData.length === 0" class="flex items-center justify-center h-24 text-muted-foreground">
-                <td class="w-full text-center">
-                  수신된 데이터가 없습니다.
-                </td>
-              </tr>
-            </tbody>
-          </table>
+    <CardContent class="flex-1 overflow-hidden p-0 relative flex flex-col">
+      <!-- Table Header -->
+      <div class="bg-background/95 backdrop-blur-sm border-b shadow-sm z-20">
+        <table class="w-full table-fixed">
+          <thead>
+            <tr class="flex w-full">
+              <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground w-[180px] shrink-0 border-r">
+                <Button
+                  variant="ghost"
+                  class="h-auto p-0 font-bold text-[10px] uppercase tracking-wider h-full w-full justify-start"
+                  @click="toggleSort('timestamp')"
+                >
+                  Timestamp
+                  <ArrowUpIcon
+                    v-if="sortColumn === 'timestamp' && sortDirection === 'asc'"
+                    class="ml-2 h-3 w-3"
+                  />
+                  <ArrowDownIcon
+                    v-else-if="sortColumn === 'timestamp' && sortDirection === 'desc'"
+                    class="ml-2 h-3 w-3"
+                  />
+                </Button>
+              </th>
+              <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground flex-1 text-[10px] uppercase tracking-wider font-bold">
+                Data Stream
+              </th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+
+      <!-- Scrollable Table Body -->
+      <div 
+        ref="scrollContainer" 
+        class="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-primary/20"
+      >
+        <table class="w-full table-auto border-collapse">
+          <tbody class="divide-y divide-border">
+            <tr
+              v-for="row in sortedData"
+              :key="row.id || row.timestamp"
+              class="transition-colors hover:bg-muted/50 transition-all duration-150"
+            >
+              <td class="px-4 py-2 w-[160px] text-[11px] text-muted-foreground font-mono bg-muted/5 border-r border-border shrink-0">
+                {{ formatTimestamp(row.timestamp) }}
+              </td>
+              <td class="px-3 py-2 font-mono text-xs flex-1 break-all">
+                <span v-if="row.data.startsWith('[SIM]')" class="text-primary font-bold mr-2 text-[9px] border border-primary/20 px-1 rounded bg-primary/5 uppercase">SIM</span>
+                {{ row.data.startsWith('[SIM]') ? row.data.replace('[SIM] ', '') : row.data }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Empty State -->
+        <div v-if="sortedData.length === 0" class="flex flex-col items-center justify-center p-20 text-muted-foreground w-full">
+          <Trash2Icon class="h-10 w-10 opacity-10 mb-4" />
+          <p class="text-xs font-semibold uppercase tracking-widest opacity-40">WAITING FOR DATA STREAM</p>
+          <div class="mt-4 flex gap-3">
+             <div class="h-1 w-1 rounded-full bg-primary animate-ping"></div>
+             <div class="h-1 w-1 rounded-full bg-primary animate-ping delay-75"></div>
+             <div class="h-1 w-1 rounded-full bg-primary animate-ping delay-150"></div>
+          </div>
         </div>
-      </ScrollArea>
+      </div>
     </CardContent>
-    <div class="p-4 pt-0 text-sm text-muted-foreground border-t bg-background">
-      총 {{ serialStore.receivedData.length }}개 항목 (최근 10,000개 유지)
+    <div class="px-4 py-2 text-[10px] text-muted-foreground border-t bg-muted/30 flex justify-between items-center font-mono">
+      <span>TOTAL ENTRIES: {{ serialStore.receivedData.length }}</span>
+      <span class="text-primary/50">DEBUG: DISPLAYED={{ sortedData.length }}</span>
     </div>
   </Card>
 </template>
 
 <style scoped>
-/* Ensure table layout doesn't break virtualization with absolute rows */
-tbody {
-  display: block;
-  position: relative;
-}
-thead tr {
-  display: flex;
-}
-tr {
+/* Standard table display for normal v-for */
+table {
   width: 100%;
 }
 </style>
