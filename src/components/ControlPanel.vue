@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useControlStore } from "@/stores/control";
 import { useSerialStore } from "@/stores/serial";
-import { ActivityIcon, ZapIcon, GaugeIcon, CpuIcon, CheckIcon } from "lucide-vue-next";
+import { ActivityIcon, ZapIcon, GaugeIcon, CpuIcon, CheckIcon, LoaderIcon } from "lucide-vue-next";
 
 const controlStore = useControlStore();
 const serialStore = useSerialStore();
@@ -58,12 +58,17 @@ onMounted(async () => {
           />
           <Button 
             size="sm" 
-            variant="outline" 
-            class="w-full h-8 text-xs gap-2"
+            variant="outline"
+            :class="[
+              'w-full h-8 text-xs gap-2 transition-all duration-300',
+              controlStore.sendingStates.voltage.success ? 'bg-green-600 text-white hover:bg-green-700 dark:bg-green-700' : ''
+            ]"
+            :disabled="!serialStore.isConnected || controlStore.sendingStates.voltage.loading"
             @click="controlStore.setVoltage(controlStore.voltage)"
           >
-            <CheckIcon class="h-3 w-3" />
-            전압 전송
+            <LoaderIcon v-if="controlStore.sendingStates.voltage.loading" class="h-3 w-3 animate-spin" />
+            <CheckIcon v-else :class="['h-3 w-3', controlStore.sendingStates.voltage.success ? 'text-white' : '']" />
+            {{ controlStore.sendingStates.voltage.loading ? '전송 중...' : controlStore.sendingStates.voltage.success ? '전송 완료' : '전압 전송' }}
           </Button>
           <p v-if="!serialStore.isConnected" class="text-[10px] text-center text-muted-foreground italic">
             장치 연결 필요 (오프라인)
@@ -114,11 +119,16 @@ onMounted(async () => {
           <Button 
             size="sm" 
             variant="outline" 
-            class="w-full h-8 text-xs gap-2"
+            :class="[
+              'w-full h-8 text-xs gap-2 transition-all duration-300',
+              controlStore.sendingStates.frequency.success ? 'bg-green-600 text-white hover:bg-green-700 dark:bg-green-700' : ''
+            ]"
+            :disabled="!serialStore.isConnected || controlStore.sendingStates.frequency.loading"
             @click="controlStore.setFrequency(controlStore.frequency)"
           >
-            <CheckIcon class="h-3 w-3" />
-            주파수 전송
+            <LoaderIcon v-if="controlStore.sendingStates.frequency.loading" class="h-3 w-3 animate-spin" />
+            <CheckIcon v-else :class="['h-3 w-3', controlStore.sendingStates.frequency.success ? 'text-white' : '']" />
+            {{ controlStore.sendingStates.frequency.loading ? '전송 중...' : controlStore.sendingStates.frequency.success ? '전송 완료' : '주파수 전송' }}
           </Button>
           <p v-if="!serialStore.isConnected" class="text-[10px] text-center text-muted-foreground italic">
             장치 연결 필요 (오프라인)
@@ -160,11 +170,16 @@ onMounted(async () => {
           <Button 
             size="sm" 
             variant="outline" 
-            class="w-full h-8 text-xs gap-2"
+            :class="[
+              'w-full h-8 text-xs gap-2 transition-all duration-300',
+              controlStore.sendingStates.register.success ? 'bg-green-600 text-white hover:bg-green-700 dark:bg-green-700' : ''
+            ]"
+            :disabled="!serialStore.isConnected || controlStore.sendingStates.register.loading"
             @click="controlStore.setRegisterValue(controlStore.registerValue)"
           >
-            <CheckIcon class="h-3 w-3" />
-            레지스터 쓰기
+            <LoaderIcon v-if="controlStore.sendingStates.register.loading" class="h-3 w-3 animate-spin" />
+            <CheckIcon v-else :class="['h-3 w-3', controlStore.sendingStates.register.success ? 'text-white' : '']" />
+            {{ controlStore.sendingStates.register.loading ? '쓰는 중...' : controlStore.sendingStates.register.success ? '기록 완료' : '레지스터 쓰기' }}
           </Button>
           <p v-if="!serialStore.isConnected" class="text-[10px] text-center text-muted-foreground italic">
             장치 연결 필요 (오프라인)

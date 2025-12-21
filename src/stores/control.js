@@ -53,31 +53,62 @@ export const useControlStore = defineStore("control", () => {
     saveControlSettings();
   });
 
-  // Actions
+  // 전송 상태 관리 (UI 피드백용)
+  const sendingStates = ref({
+    voltage: { loading: false, success: false },
+    frequency: { loading: false, success: false },
+    register: { loading: false, success: false },
+  });
+
   async function setVoltage(value) {
     voltage.value = value;
+    sendingStates.value.voltage.loading = true;
+    sendingStates.value.voltage.success = false;
+
     const cmd = `VOLT:${value.toFixed(2)}\n`;
     const success = await serialStore.sendData(cmd);
-    if (!success) {
-      console.warn("Failed to send voltage command");
+
+    // UX를 위해 최소 로딩 시간 부여
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+    sendingStates.value.voltage.loading = false;
+    if (success) {
+      sendingStates.value.voltage.success = true;
+      setTimeout(() => { sendingStates.value.voltage.success = false; }, 2000);
     }
   }
 
   async function setFrequency(value) {
     frequency.value = value;
+    sendingStates.value.frequency.loading = true;
+    sendingStates.value.frequency.success = false;
+
     const cmd = `FREQ:${value}\n`;
     const success = await serialStore.sendData(cmd);
-    if (!success) {
-      console.warn("Failed to send frequency command");
+
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+    sendingStates.value.frequency.loading = false;
+    if (success) {
+      sendingStates.value.frequency.success = true;
+      setTimeout(() => { sendingStates.value.frequency.success = false; }, 2000);
     }
   }
 
   async function setRegisterValue(value) {
     registerValue.value = value;
+    sendingStates.value.register.loading = true;
+    sendingStates.value.register.success = false;
+
     const cmd = `REG:0x${value.toString(16).toUpperCase().padStart(8, '0')}\n`;
     const success = await serialStore.sendData(cmd);
-    if (!success) {
-      console.warn("Failed to send register command");
+
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+    sendingStates.value.register.loading = false;
+    if (success) {
+      sendingStates.value.register.success = true;
+      setTimeout(() => { sendingStates.value.register.success = false; }, 2000);
     }
   }
 
@@ -85,6 +116,7 @@ export const useControlStore = defineStore("control", () => {
     voltage,
     frequency,
     registerValue,
+    sendingStates,
     setVoltage,
     setFrequency,
     setRegisterValue,
