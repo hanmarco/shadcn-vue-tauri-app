@@ -49,12 +49,12 @@ onMounted(async () => {
             </div>
           </div>
           <Slider
-            :model-value="[controlStore.voltage]"
+            :model-value="controlStore.voltage"
             :min="0"
             :max="5"
             :step="0.1"
             class="py-2"
-            @update:model-value="(val) => controlStore.voltage = val[0]"
+            @update:model-value="(val) => controlStore.voltage = val"
           />
           <Button 
             size="sm" 
@@ -104,12 +104,12 @@ onMounted(async () => {
             </div>
           </div>
           <Slider
-            :model-value="[controlStore.frequency]"
+            :model-value="controlStore.frequency"
             :min="1000"
             :max="10000000"
             :step="1000"
             class="py-2"
-            @update:model-value="(val) => controlStore.frequency = val[0]"
+            @update:model-value="(val) => controlStore.frequency = val"
           />
           <Button 
             size="sm" 

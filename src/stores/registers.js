@@ -49,27 +49,46 @@ export const useRegisterStore = defineStore("registers", () => {
     // Actions
     async function readRegister(address) {
         if (!serialStore.isConnected) return;
-        try {
-            const value = await invoke("read_register", { address });
-            const reg = registers.value.find(r => r.address === address);
-            if (reg) {
-                reg.value = value;
+
+        const cmd = `RREG:0x${address.toString(16).toUpperCase().padStart(2, '0')}\n`;
+        await serialStore.sendData(cmd);
+
+        if (serialStore.selectedDevice === serialStore.VIRTUAL_DEVICE) {
+            // Simulation: return a random value after a short delay
+            setTimeout(() => {
+                const mockValue = Math.floor(Math.random() * 256);
+                const reg = registers.value.find(r => r.address === address);
+                if (reg) reg.value = mockValue;
+                serialStore.addReceivedData(`[SIM] Read 0x${address.toString(16).toUpperCase()} = 0x${mockValue.toString(16).toUpperCase()}`, true);
+            }, 200);
+        } else {
+            try {
+                const value = await invoke("read_register", { address });
+                const reg = registers.value.find(r => r.address === address);
+                if (reg) reg.value = value;
+            } catch (error) {
+                console.error(`Failed to read register 0x${address.toString(16)}:`, error);
             }
-        } catch (error) {
-            console.error(`Failed to read register 0x${address.toString(16)}:`, error);
         }
     }
 
     async function writeRegister(address, value) {
         if (!serialStore.isConnected) return;
-        try {
-            await invoke("write_register", { address, value });
+
+        const cmd = `WREG:0x${address.toString(16).toUpperCase().padStart(2, '0')},0x${value.toString(16).toUpperCase().padStart(2, '0')}\n`;
+        await serialStore.sendData(cmd);
+
+        if (serialStore.selectedDevice === serialStore.VIRTUAL_DEVICE) {
             const reg = registers.value.find(r => r.address === address);
-            if (reg) {
-                reg.value = value;
+            if (reg) reg.value = value;
+        } else {
+            try {
+                await invoke("write_register", { address, value });
+                const reg = registers.value.find(r => r.address === address);
+                if (reg) reg.value = value;
+            } catch (error) {
+                console.error(`Failed to write register 0x${address.toString(16)}:`, error);
             }
-        } catch (error) {
-            console.error(`Failed to write register 0x${address.toString(16)}:`, error);
         }
     }
 

@@ -17,8 +17,8 @@ export const useSerialStore = defineStore("serial", () => {
   const stopBits = ref(1);
   const dataBits = ref(8);
   const receivedData = ref([]);
-  const txEnabled = ref(false);
-  const rxEnabled = ref(false);
+  const txEnabled = ref(true);
+  const rxEnabled = ref(true);
   const connectionError = ref(null);
   const isConnecting = ref(false);
   const isSimulationMode = ref(false);
@@ -164,7 +164,7 @@ export const useSerialStore = defineStore("serial", () => {
       // Mock response for simulation
       const mockResponse = `[SIM] ACK: Received "${data.trim()}" at ${new Date().toLocaleTimeString()}`;
       setTimeout(() => {
-        addReceivedData(mockResponse);
+        addReceivedData(mockResponse, true); // Force add to logs
       }, 100);
       return true;
     }
@@ -201,8 +201,8 @@ export const useSerialStore = defineStore("serial", () => {
     throttleTimeout = null;
   }
 
-  function addReceivedData(data) {
-    if (!rxEnabled.value) return;
+  function addReceivedData(data, force = false) {
+    if (!rxEnabled.value && !force) return;
 
     pendingData.value.push(data);
 
