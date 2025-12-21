@@ -1,15 +1,18 @@
 <script setup>
 import { onMounted } from "vue";
-import { Sidebar, SidebarHeader, SidebarContent, SidebarItem } from "@/components/ui/sidebar";
+import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarItem } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useSerialStore } from "@/stores/serial";
+import { useDark, useToggle } from "@vueuse/core";
 import { 
   SettingsIcon, 
   LayoutDashboardIcon, 
   CpuIcon, 
-  ScrollTextIcon 
+  ScrollTextIcon,
+  MoonIcon,
+  SunIcon
 } from "lucide-vue-next";
 
 const props = defineProps({
@@ -22,6 +25,8 @@ const props = defineProps({
 const emit = defineEmits(["update:activeTab"]);
 
 const serialStore = useSerialStore();
+const isDark = useDark();
+const toggleDark = useToggle(isDark);
 
 onMounted(async () => {
   await serialStore.setupEventListeners();
@@ -73,23 +78,45 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Simulation Toggle at Bottom -->
-        <div class="mt-auto border-t p-4 pb-8">
-          <div class="flex items-center justify-between rounded-lg bg-muted/40 p-4 border border-dashed border-primary/20">
-            <div class="space-y-0.5">
-              <label class="text-xs font-bold uppercase tracking-wider text-primary">Simulation</label>
-              <p class="text-[10px] text-muted-foreground italic">Virtual Core Mode</p>
-            </div>
-            <Switch
-              :model-value="serialStore.isSimulationMode"
-              @update:model-value="(val) => {
-                serialStore.isSimulationMode = val;
-                serialStore.scanDevices();
-              }"
-            />
-          </div>
-        </div>
       </SidebarContent>
+
+      <!-- Sidebar Footer (Absolute Bottom) -->
+      <SidebarFooter class="space-y-3">
+        <!-- Dark Mode Toggle -->
+        <div class="flex items-center justify-between px-2 py-2 rounded-md hover:bg-muted/30 transition-colors">
+          <div class="flex items-center gap-2">
+            <div class="flex h-7 w-7 items-center justify-center rounded-md bg-muted/60">
+              <SunIcon v-if="!isDark" class="h-4 w-4 text-orange-500" />
+              <MoonIcon v-else class="h-4 w-4 text-blue-400" />
+            </div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Theme</span>
+          </div>
+          <Switch
+            :model-value="isDark"
+            @update:model-value="toggleDark()"
+          />
+        </div>
+
+        <!-- Simulation Toggle -->
+        <div class="flex items-center justify-between px-2 py-2 rounded-md bg-primary/5 border border-primary/10">
+          <div class="flex items-center gap-2">
+            <div class="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 animate-pulse"><path d="m3 21 1.9-1.9"/><path d="m3 18 5.9-5.9"/><circle cx="12" cy="12" r="2"/><path d="m15.1 8.9 5.9-5.9"/><path d="m18 3 3 3"/><path d="M21 21a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-primary">Simulation</span>
+              <span class="text-[8px] text-muted-foreground italic leading-none">VIRTUAL CORE</span>
+            </div>
+          </div>
+          <Switch
+            :model-value="serialStore.isSimulationMode"
+            @update:model-value="(val) => {
+              serialStore.isSimulationMode = val;
+              serialStore.scanDevices();
+            }"
+          />
+        </div>
+      </SidebarFooter>
     </Sidebar>
 
     <!-- Main Content -->
