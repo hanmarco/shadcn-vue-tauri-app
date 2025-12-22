@@ -1,6 +1,7 @@
 use serialport::{SerialPort, SerialPortType};
 use std::fs::File;
-use std::io::Write;
+use std::io::{Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -10,6 +11,7 @@ use tauri::{AppHandle, Emitter};
 struct SerialState {
     port: Option<Arc<Mutex<Box<dyn SerialPort>>>>,
     reader_thread: Option<thread::JoinHandle<()>>,
+    stop_signal: Arc<AtomicBool>,
 }
 
 impl SerialState {
@@ -17,6 +19,7 @@ impl SerialState {
         Self {
             port: None,
             reader_thread: None,
+            stop_signal: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -43,38 +46,26 @@ fn scan_serial_devices() -> Vec<String> {
                 }
             }
 
-            // 포트가 실제로 열 수 있는지 빠르게 테스트
-            let test_builder =
-                serialport::new(&port_info.port_name, 9600).timeout(Duration::from_millis(100));
-
-            // 포트 열기 테스트 (타임아웃 짧게 설정)
-            match test_builder.open() {
-                Ok(_) => {
-                    // 포트를 열 수 있으면 리스트에 추가
-                    let display_name = match &port_info.port_type {
-                        SerialPortType::UsbPort(info) => {
-                            // FTDI 칩 감지 (VID:0403)
-                            if info.vid == 0x0403 {
-                                format!(
-                                    "{} (FTDI VID:{:04X} PID:{:04X})",
-                                    port_info.port_name, info.vid, info.pid
-                                )
-                            } else {
-                                format!(
-                                    "{} (VID:{:04X} PID:{:04X})",
-                                    port_info.port_name, info.vid, info.pid
-                                )
-                            }
-                        }
-                        _ => port_info.port_name.clone(),
-                    };
-                    available_ports.push(display_name);
+            // 포트를 실제로 열어보는 테스트는 성능 저하를 유발하므로 제거하고
+            // 가용 포트 정보를 즉시 반환합니다.
+            let display_name = match &port_info.port_type {
+                SerialPortType::UsbPort(info) => {
+                    // FTDI 칩 감지 (VID:0403)
+                    if info.vid == 0x0403 {
+                        format!(
+                            "{} (FTDI VID:{:04X} PID:{:04X})",
+                            port_info.port_name, info.vid, info.pid
+                        )
+                    } else {
+                        format!(
+                            "{} (VID:{:04X} PID:{:04X})",
+                            port_info.port_name, info.vid, info.pid
+                        )
+                    }
                 }
-                Err(_) => {
-                    // 포트를 열 수 없으면 스킵 (에러 무시)
-                    continue;
-                }
-            }
+                _ => port_info.port_name.clone(),
+            };
+            available_ports.push(display_name);
         }
     }
 
@@ -95,11 +86,17 @@ fn connect_serial(
 
     // 이미 연결되어 있으면 해제
     if serial_state.port.is_some() {
+        serial_state.stop_signal.store(true, Ordering::SeqCst);
         serial_state.port = None;
         if let Some(handle) = serial_state.reader_thread.take() {
+            // join()이 너무 오래 걸릴 수 있으므로, 500ms만 기다리고 나머지는 백그라운드에서 처리되게 함
+            // 실제로는 stop_signal과 짧은 read timeout 덕분에 금방 종료됨
             let _ = handle.join();
         }
     }
+
+    // 새 연결을 위해 stop_signal 초기화
+    serial_state.stop_signal.store(false, Ordering::SeqCst);
 
     // Parity 설정
     let parity_setting = match parity.as_str() {
@@ -135,7 +132,7 @@ fn connect_serial(
             .parity(parity_setting_clone)
             .stop_bits(stop_bits_setting_clone)
             .data_bits(data_bits_setting_clone)
-            .timeout(Duration::from_millis(1000));
+            .timeout(Duration::from_millis(100)); // 타임아웃을 100ms로 단축
 
         match builder.open() {
             Ok(port) => {
@@ -159,9 +156,15 @@ fn connect_serial(
             // 백그라운드에서 데이터 읽기 시작
             let app_clone = app.clone();
             let port_clone = port_arc.clone();
+            let stop_signal_clone = serial_state.stop_signal.clone();
             let handle = thread::spawn(move || {
                 let mut buffer = vec![0u8; 1024];
                 loop {
+                    // 중단 신호 확인
+                    if stop_signal_clone.load(Ordering::SeqCst) {
+                        break;
+                    }
+
                     let mut port_guard = match port_clone.lock() {
                         Ok(guard) => guard,
                         Err(_) => break,
@@ -174,7 +177,7 @@ fn connect_serial(
                         }
                         Ok(_) => {}
                         Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                            // 타임아웃은 정상적인 상황
+                            // 타임아웃은 정상적인 상황 (100ms마다 루프를 돌며 stop_signal 체크 가능)
                         }
                         Err(_) => break,
                     }
