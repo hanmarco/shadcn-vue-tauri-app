@@ -116,8 +116,10 @@ export const useSerialStore = defineStore("serial", () => {
         return true;
       }
 
+      const actualPortName = portName.includes(" (") ? portName.split(" (")[0] : portName;
+
       await invoke("connect_serial", {
-        portName,
+        portName: actualPortName,
         baudRate: baudRate.value,
         parity: parity.value,
         stopBits: stopBits.value,
