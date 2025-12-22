@@ -22,6 +22,14 @@ export const useSerialStore = defineStore("serial", () => {
   const connectionError = ref(null);
   const isConnecting = ref(false);
   const isSimulationMode = ref(false);
+  const deviceType = ref("serialport"); // 'serialport', 'ft2232d', 'ft2232h', 'ft260'
+
+  // Specific settings for ICs
+  const ftdiChannel = ref("A"); // 'A', 'B'
+  const ftdiMode = ref("UART"); // 'UART', 'Bitbang', 'MPSSE'
+  const ft260Mode = ref("I2C"); // 'I2C', 'UART'
+  const ft260I2cSpeed = ref(400); // kHz
+
   const VIRTUAL_DEVICE = "Virtual Simulator (SIM)";
 
   // Throttling state
@@ -44,6 +52,11 @@ export const useSerialStore = defineStore("serial", () => {
         parity.value = saved.parity || "none";
         stopBits.value = saved.stopBits || 1;
         dataBits.value = saved.dataBits || 8;
+        deviceType.value = saved.deviceType || "serialport";
+        ftdiChannel.value = saved.ftdiChannel || "A";
+        ftdiMode.value = saved.ftdiMode || "UART";
+        ft260Mode.value = saved.ft260Mode || "I2C";
+        ft260I2cSpeed.value = saved.ft260I2cSpeed || 400;
         txEnabled.value = saved.txEnabled !== undefined ? saved.txEnabled : true;
         rxEnabled.value = saved.rxEnabled !== undefined ? saved.rxEnabled : true;
       }
@@ -69,6 +82,11 @@ export const useSerialStore = defineStore("serial", () => {
         parity: parity.value,
         stopBits: stopBits.value,
         dataBits: dataBits.value,
+        deviceType: deviceType.value,
+        ftdiChannel: ftdiChannel.value,
+        ftdiMode: ftdiMode.value,
+        ft260Mode: ft260Mode.value,
+        ft260I2cSpeed: ft260I2cSpeed.value,
         txEnabled: txEnabled.value,
         rxEnabled: rxEnabled.value,
       });
@@ -81,7 +99,11 @@ export const useSerialStore = defineStore("serial", () => {
   }
 
   // Watch for changes and save
-  watch([baudRate, parity, stopBits, dataBits, isSimulationMode, txEnabled, rxEnabled], () => {
+  watch([
+    baudRate, parity, stopBits, dataBits, deviceType,
+    ftdiChannel, ftdiMode, ft260Mode, ft260I2cSpeed,
+    isSimulationMode, txEnabled, rxEnabled
+  ], () => {
     saveSettings();
   });
 
@@ -292,6 +314,11 @@ export const useSerialStore = defineStore("serial", () => {
     connectionError,
     isConnecting,
     isSimulationMode,
+    deviceType,
+    ftdiChannel,
+    ftdiMode,
+    ft260Mode,
+    ft260I2cSpeed,
     VIRTUAL_DEVICE,
     scanDevices,
     connect,
