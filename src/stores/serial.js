@@ -107,6 +107,13 @@ export const useSerialStore = defineStore("serial", () => {
     saveSettings();
   });
 
+  // Reset connection if device type changes
+  watch(deviceType, () => {
+    if (isConnected.value) {
+      disconnect();
+    }
+  });
+
   // Actions
   async function scanDevices() {
     try {
@@ -142,14 +149,19 @@ export const useSerialStore = defineStore("serial", () => {
         return true;
       }
 
-      const actualPortName = portName.includes(" (") ? portName.split(" (")[0] : portName;
+      const actualPortName = portName && portName.includes(" (") ? portName.split(" (")[0] : portName;
 
-      await invoke("connect_serial", {
+      await invoke("connect_device", {
+        deviceType: deviceType.value,
         portName: actualPortName,
         baudRate: baudRate.value,
         parity: parity.value,
         stopBits: stopBits.value,
         dataBits: dataBits.value,
+        ftdiChannel: ftdiChannel.value,
+        ftdiMode: ftdiMode.value,
+        ft260Mode: ft260Mode.value,
+        ft260I2cSpeed: ft260I2cSpeed.value,
       });
       selectedDevice.value = portName;
       isConnected.value = true;

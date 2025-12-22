@@ -8,8 +8,15 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 // 시리얼 포트 상태 관리
+// 통신 브릿지: 다양한 하드웨어 인터페이스 추상화
+enum CommBridge {
+    Serial(Box<dyn SerialPort>),
+    Hid(hidapi::HidDevice),
+}
+
+// 시리얼 포트 상태 관리
 struct SerialState {
-    port: Option<Arc<Mutex<Box<dyn SerialPort>>>>,
+    device: Option<Arc<Mutex<CommBridge>>>,
     reader_thread: Option<thread::JoinHandle<()>>,
     stop_signal: Arc<AtomicBool>,
 }
@@ -17,7 +24,7 @@ struct SerialState {
 impl SerialState {
     fn new() -> Self {
         Self {
-            port: None,
+            device: None,
             reader_thread: None,
             stop_signal: Arc::new(AtomicBool::new(false)),
         }
@@ -73,135 +80,147 @@ fn scan_serial_devices() -> Vec<String> {
 }
 
 #[tauri::command]
-fn connect_serial(
-    port_name: String,
+fn connect_device(
+    device_type: String,
+    port_name: Option<String>,
     baud_rate: u32,
     parity: String,
     stop_bits: u8,
     data_bits: u8,
+    ftdi_channel: Option<String>,
+    ftdi_mode: Option<String>,
+    ft260_mode: Option<String>,
+    ft260_i2c_speed: Option<u32>,
     state: tauri::State<AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
     let mut serial_state = state.serial.lock().map_err(|e| e.to_string())?;
 
     // 이미 연결되어 있으면 해제
-    if serial_state.port.is_some() {
+    if serial_state.device.is_some() {
         serial_state.stop_signal.store(true, Ordering::SeqCst);
-        serial_state.port = None;
+        serial_state.device = None;
         if let Some(handle) = serial_state.reader_thread.take() {
-            // join()이 너무 오래 걸릴 수 있으므로, 500ms만 기다리고 나머지는 백그라운드에서 처리되게 함
-            // 실제로는 stop_signal과 짧은 read timeout 덕분에 금방 종료됨
             let _ = handle.join();
         }
     }
 
-    // 새 연결을 위해 stop_signal 초기화
-    serial_state.stop_signal.store(false, Ordering::SeqCst);
+    println!(
+        "Connecting to {} (Port: {:?}, Baud: {}, Parity: {}, Config: {:?}/{:?}/{:?}/{:?})",
+        device_type,
+        port_name,
+        baud_rate,
+        parity,
+        ftdi_channel,
+        ftdi_mode,
+        ft260_mode,
+        ft260_i2c_speed
+    );
 
-    // Parity 설정
-    let parity_setting = match parity.as_str() {
-        "even" => serialport::Parity::Even,
-        "odd" => serialport::Parity::Odd,
-        _ => serialport::Parity::None,
+    let device = match device_type.as_str() {
+        "serialport" => {
+            let name = port_name.ok_or("Port name is required for serial mode")?;
+            let actual_name = if name.contains(" (") {
+                name.split(" (").next().unwrap_or(&name)
+            } else {
+                &name
+            };
+
+            // Parity, Stop bits, Data bits 설정 (기존 로직 유지)
+            let parity_setting = match parity.as_str() {
+                "even" => serialport::Parity::Even,
+                "odd" => serialport::Parity::Odd,
+                _ => serialport::Parity::None,
+            };
+            let stop_bits_setting = if stop_bits == 2 {
+                serialport::StopBits::Two
+            } else {
+                serialport::StopBits::One
+            };
+            let data_bits_setting = match data_bits {
+                5 => serialport::DataBits::Five,
+                6 => serialport::DataBits::Six,
+                7 => serialport::DataBits::Seven,
+                _ => serialport::DataBits::Eight,
+            };
+
+            let port = serialport::new(actual_name, baud_rate)
+                .parity(parity_setting)
+                .stop_bits(stop_bits_setting)
+                .data_bits(data_bits_setting)
+                .timeout(Duration::from_millis(100))
+                .open()
+                .map_err(|e| format!("Failed to open serial port: {}", e))?;
+
+            CommBridge::Serial(port)
+        }
+        "ft260" => {
+            let api = hidapi::HidApi::new().map_err(|e| e.to_string())?;
+            // FT260 VID:0403, PID:6030
+            let device = api
+                .open(0x0403, 0x6030)
+                .map_err(|e| format!("Failed to open FT260: {}", e))?;
+            CommBridge::Hid(device)
+        }
+        _ => return Err(format!("Unsupported device type: {}", device_type)),
     };
 
-    // Stop bits 설정
-    let stop_bits_setting = match stop_bits {
-        2 => serialport::StopBits::Two,
-        _ => serialport::StopBits::One,
-    };
+    let device_arc = Arc::new(Mutex::new(device));
+    serial_state.device = Some(device_arc.clone());
 
-    // Data bits 설정
-    let data_bits_setting = match data_bits {
-        5 => serialport::DataBits::Five,
-        6 => serialport::DataBits::Six,
-        7 => serialport::DataBits::Seven,
-        _ => serialport::DataBits::Eight,
-    };
+    // 백그라운드 리더 스레드
+    let app_clone = app.clone();
+    let device_clone = device_arc.clone();
+    let stop_signal_clone = serial_state.stop_signal.clone();
 
-    // 시리얼 포트 열기 (타임아웃 설정)
-    // 연결 시도를 별도 스레드에서 실행하여 블로킹 방지
-    let port_name_clone = port_name.clone();
-    let parity_setting_clone = parity_setting;
-    let stop_bits_setting_clone = stop_bits_setting;
-    let data_bits_setting_clone = data_bits_setting;
-    let (tx, rx) = std::sync::mpsc::channel();
-
-    thread::spawn(move || {
-        let builder = serialport::new(&port_name_clone, baud_rate)
-            .parity(parity_setting_clone)
-            .stop_bits(stop_bits_setting_clone)
-            .data_bits(data_bits_setting_clone)
-            .timeout(Duration::from_millis(100)); // 타임아웃을 100ms로 단축
-
-        match builder.open() {
-            Ok(port) => {
-                let _ = tx.send(Ok(port));
+    let handle = thread::spawn(move || {
+        let mut buffer = vec![0u8; 1024];
+        loop {
+            if stop_signal_clone.load(Ordering::SeqCst) {
+                break;
             }
-            Err(e) => {
-                let _ = tx.send(Err(format!(
-                    "Failed to open serial port {}: {}",
-                    port_name_clone, e
-                )));
+
+            let mut device_guard = match device_clone.lock() {
+                Ok(guard) => guard,
+                Err(_) => break,
+            };
+
+            match &mut *device_guard {
+                CommBridge::Serial(port) => match port.read(&mut buffer) {
+                    Ok(bytes_read) if bytes_read > 0 => {
+                        let data = String::from_utf8_lossy(&buffer[..bytes_read]);
+                        let _ = app_clone.emit("serial-data-received", data.to_string());
+                    }
+                    _ => {}
+                },
+                CommBridge::Hid(hid_dev) => {
+                    // HID 리포트 읽기
+                    match hid_dev.read_timeout(&mut buffer, 100) {
+                        Ok(bytes_read) if bytes_read > 0 => {
+                            let data = hex::encode(&buffer[..bytes_read]); // 바이너리 앱의 경우 헥사 표시 선호
+                            let _ =
+                                app_clone.emit("serial-data-received", format!("[HID] {}", data));
+                        }
+                        _ => {}
+                    }
+                }
             }
+            drop(device_guard);
+            thread::sleep(Duration::from_millis(10));
         }
     });
 
-    // 최대 2초 대기
-    match rx.recv_timeout(Duration::from_secs(2)) {
-        Ok(Ok(port)) => {
-            let port_arc = Arc::new(Mutex::new(port));
-            serial_state.port = Some(port_arc.clone());
-
-            // 백그라운드에서 데이터 읽기 시작
-            let app_clone = app.clone();
-            let port_clone = port_arc.clone();
-            let stop_signal_clone = serial_state.stop_signal.clone();
-            let handle = thread::spawn(move || {
-                let mut buffer = vec![0u8; 1024];
-                loop {
-                    // 중단 신호 확인
-                    if stop_signal_clone.load(Ordering::SeqCst) {
-                        break;
-                    }
-
-                    let mut port_guard = match port_clone.lock() {
-                        Ok(guard) => guard,
-                        Err(_) => break,
-                    };
-
-                    match port_guard.read(&mut buffer) {
-                        Ok(bytes_read) if bytes_read > 0 => {
-                            let data = String::from_utf8_lossy(&buffer[..bytes_read]);
-                            let _ = app_clone.emit("serial-data-received", data.to_string());
-                        }
-                        Ok(_) => {}
-                        Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                            // 타임아웃은 정상적인 상황 (100ms마다 루프를 돌며 stop_signal 체크 가능)
-                        }
-                        Err(_) => break,
-                    }
-
-                    drop(port_guard);
-                    thread::sleep(Duration::from_millis(10));
-                }
-            });
-
-            serial_state.reader_thread = Some(handle);
-            Ok(())
-        }
-        Ok(Err(e)) => Err(e),
-        Err(_) => Err(format!(
-            "Connection timeout: Failed to open serial port {} within 2 seconds",
-            port_name
-        )),
-    }
+    serial_state.reader_thread = Some(handle);
+    Ok(())
 }
 
 #[tauri::command]
 fn disconnect_serial(state: tauri::State<AppState>) -> Result<(), String> {
     let mut serial_state = state.serial.lock().map_err(|e| e.to_string())?;
-    serial_state.port = None;
+
+    serial_state.stop_signal.store(true, Ordering::SeqCst);
+    serial_state.device = None;
+
     if let Some(handle) = serial_state.reader_thread.take() {
         let _ = handle.join();
     }
@@ -212,76 +231,118 @@ fn disconnect_serial(state: tauri::State<AppState>) -> Result<(), String> {
 fn send_serial_data(data: String, state: tauri::State<AppState>) -> Result<(), String> {
     let serial_state = state.serial.lock().map_err(|e| e.to_string())?;
 
-    if let Some(ref port_arc) = serial_state.port {
-        let mut port = port_arc.lock().map_err(|e| e.to_string())?;
-        port.write(data.as_bytes())
-            .map_err(|e| format!("Failed to write data: {}", e))?;
+    if let Some(ref device_arc) = serial_state.device {
+        let mut device = device_arc.lock().map_err(|e| e.to_string())?;
+        match &mut *device {
+            CommBridge::Serial(port) => {
+                port.write(data.as_bytes())
+                    .map_err(|e| format!("Failed to write to serial: {}", e))?;
+            }
+            CommBridge::Hid(hid_dev) => {
+                // HID 전송 (일반적으로 Report ID 0 사용 또는 상황에 맞게 조정)
+                let mut buf = vec![0u8; data.len() + 1];
+                buf[1..].copy_from_slice(data.as_bytes());
+                hid_dev
+                    .write(&buf)
+                    .map_err(|e| format!("Failed to write to HID: {}", e))?;
+            }
+        }
         Ok(())
     } else {
-        Err("Serial port is not connected".to_string())
+        Err("Device is not connected".to_string())
     }
 }
 
 #[tauri::command]
 async fn set_voltage(state: tauri::State<'_, AppState>, value: f64) -> Result<(), String> {
     let serial_state = state.serial.lock().map_err(|e| e.to_string())?;
-    if let Some(ref port_arc) = serial_state.port {
-        let mut port = port_arc.lock().map_err(|e| e.to_string())?;
+    if let Some(ref device_arc) = serial_state.device {
+        let mut device = device_arc.lock().map_err(|e| e.to_string())?;
         let cmd = format!("VOLT:{:.2}\n", value);
-        port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
-        port.flush().map_err(|e| e.to_string())?;
-        println!("Sent command: {}", cmd.trim());
+
+        match &mut *device {
+            CommBridge::Serial(port) => {
+                port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
+                port.flush().map_err(|e| e.to_string())?;
+            }
+            CommBridge::Hid(hid_dev) => {
+                let mut buf = vec![0u8; cmd.len() + 1];
+                buf[1..].copy_from_slice(cmd.as_bytes());
+                hid_dev.write(&buf).map_err(|e| e.to_string())?;
+            }
+        }
         Ok(())
     } else {
-        Err("Serial port is not connected".into())
+        Err("Device is not connected".into())
     }
 }
 
 #[tauri::command]
 async fn set_frequency(state: tauri::State<'_, AppState>, value: u64) -> Result<(), String> {
     let serial_state = state.serial.lock().map_err(|e| e.to_string())?;
-    if let Some(ref port_arc) = serial_state.port {
-        let mut port = port_arc.lock().map_err(|e| e.to_string())?;
+    if let Some(ref device_arc) = serial_state.device {
+        let mut device = device_arc.lock().map_err(|e| e.to_string())?;
         let cmd = format!("FREQ:{}\n", value);
-        port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
-        port.flush().map_err(|e| e.to_string())?;
-        println!("Sent command: {}", cmd.trim());
+        match &mut *device {
+            CommBridge::Serial(port) => {
+                port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
+                port.flush().map_err(|e| e.to_string())?;
+            }
+            CommBridge::Hid(hid_dev) => {
+                let mut buf = vec![0u8; cmd.len() + 1];
+                buf[1..].copy_from_slice(cmd.as_bytes());
+                hid_dev.write(&buf).map_err(|e| e.to_string())?;
+            }
+        }
         Ok(())
     } else {
-        Err("Serial port is not connected".into())
+        Err("Device is not connected".into())
     }
 }
 
 #[tauri::command]
 async fn set_register(state: tauri::State<'_, AppState>, value: u32) -> Result<(), String> {
     let serial_state = state.serial.lock().map_err(|e| e.to_string())?;
-    if let Some(ref port_arc) = serial_state.port {
-        let mut port = port_arc.lock().map_err(|e| e.to_string())?;
+    if let Some(ref device_arc) = serial_state.device {
+        let mut device = device_arc.lock().map_err(|e| e.to_string())?;
         let cmd = format!("REG:0x{:08X}\n", value);
-        port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
-        port.flush().map_err(|e| e.to_string())?;
-        println!("Sent command: {}", cmd.trim());
+        match &mut *device {
+            CommBridge::Serial(port) => {
+                port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
+                port.flush().map_err(|e| e.to_string())?;
+            }
+            CommBridge::Hid(hid_dev) => {
+                let mut buf = vec![0u8; cmd.len() + 1];
+                buf[1..].copy_from_slice(cmd.as_bytes());
+                hid_dev.write(&buf).map_err(|e| e.to_string())?;
+            }
+        }
         Ok(())
     } else {
-        Err("Serial port is not connected".into())
+        Err("Device is not connected".into())
     }
 }
 
 #[tauri::command]
 async fn read_register(state: tauri::State<'_, AppState>, address: u32) -> Result<u32, String> {
     let serial_state = state.serial.lock().map_err(|e| e.to_string())?;
-    if let Some(ref port_arc) = serial_state.port {
-        let mut port = port_arc.lock().map_err(|e| e.to_string())?;
+    if let Some(ref device_arc) = serial_state.device {
+        let mut device = device_arc.lock().map_err(|e| e.to_string())?;
         let cmd = format!("RREG:0x{:02X}\n", address);
-        port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
-        port.flush().map_err(|e| e.to_string())?;
-
-        // Note: Real implementation would wait for response from IC
-        // Here we just return a dummy value or simulate the read
-        println!("Sent command: {}", cmd.trim());
-        Ok(0) // Dummy response
+        match &mut *device {
+            CommBridge::Serial(port) => {
+                port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
+                port.flush().map_err(|e| e.to_string())?;
+            }
+            CommBridge::Hid(hid_dev) => {
+                let mut buf = vec![0u8; cmd.len() + 1];
+                buf[1..].copy_from_slice(cmd.as_bytes());
+                hid_dev.write(&buf).map_err(|e| e.to_string())?;
+            }
+        }
+        Ok(0)
     } else {
-        Err("Serial port is not connected".into())
+        Err("Device is not connected".into())
     }
 }
 
@@ -292,15 +353,23 @@ async fn write_register(
     value: u32,
 ) -> Result<(), String> {
     let serial_state = state.serial.lock().map_err(|e| e.to_string())?;
-    if let Some(ref port_arc) = serial_state.port {
-        let mut port = port_arc.lock().map_err(|e| e.to_string())?;
+    if let Some(ref device_arc) = serial_state.device {
+        let mut device = device_arc.lock().map_err(|e| e.to_string())?;
         let cmd = format!("WREG:0x{:02X},0x{:02X}\n", address, value);
-        port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
-        port.flush().map_err(|e| e.to_string())?;
-        println!("Sent command: {}", cmd.trim());
+        match &mut *device {
+            CommBridge::Serial(port) => {
+                port.write_all(cmd.as_bytes()).map_err(|e| e.to_string())?;
+                port.flush().map_err(|e| e.to_string())?;
+            }
+            CommBridge::Hid(hid_dev) => {
+                let mut buf = vec![0u8; cmd.len() + 1];
+                buf[1..].copy_from_slice(cmd.as_bytes());
+                hid_dev.write(&buf).map_err(|e| e.to_string())?;
+            }
+        }
         Ok(())
     } else {
-        Err("Serial port is not connected".into())
+        Err("Device is not connected".into())
     }
 }
 
@@ -323,7 +392,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             scan_serial_devices,
-            connect_serial,
+            connect_device,
             disconnect_serial,
             send_serial_data,
             set_voltage,
