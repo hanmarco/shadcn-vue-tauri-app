@@ -6,7 +6,7 @@ import ControlPanel from "@/components/ControlPanel.vue";
 import DataTable from "@/components/DataTable.vue";
 import RegisterMap from "@/components/RegisterMap.vue";
 
-const activeTab = ref("dashboard");
+const activeTab = ref("config");
 </script>
 
 <template>
