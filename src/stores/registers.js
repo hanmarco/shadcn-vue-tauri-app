@@ -59,7 +59,7 @@ export const useRegisterStore = defineStore("registers", () => {
                 const mockValue = Math.floor(Math.random() * 256);
                 const reg = registers.value.find(r => r.address === address);
                 if (reg) reg.value = mockValue;
-                serialStore.addReceivedData(`[SIM] Read 0x${address.toString(16).toUpperCase()} = 0x${mockValue.toString(16).toUpperCase()}`, true);
+                serialStore.addReceivedData(`[SIM] Read 0x${address.toString(16).toUpperCase()} = 0x${mockValue.toString(16).toUpperCase()}`, "rx", true);
             }, 200);
         } else {
             try {

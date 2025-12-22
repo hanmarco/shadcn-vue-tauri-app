@@ -61,7 +61,7 @@ watch(() => serialStore.receivedData.length, async () => {
   <Card class="m-6 flex flex-1 flex-col overflow-hidden">
     <CardHeader>
       <div class="flex items-center justify-between">
-        <CardTitle>수신 데이터 로그</CardTitle>
+        <CardTitle>송수신 데이터 로그</CardTitle>
         <div class="flex gap-2">
           <Button variant="outline" size="sm" @click="serialStore.exportLogs">
             <DownloadIcon class="mr-2 h-4 w-4" />
@@ -109,21 +109,42 @@ watch(() => serialStore.receivedData.length, async () => {
             <tr
               v-for="row in sortedData"
               :key="row.id || row.timestamp"
-              class="group transition-colors hover:bg-muted/30"
+              :class="[
+                'group transition-colors',
+                row.type === 'tx' ? 'hover:bg-blue-500/10' : 'hover:bg-emerald-500/10'
+              ]"
             >
-              <td class="px-4 py-2 w-[180px] text-[11px] text-muted-foreground/80 font-mono bg-muted/5 border-r border-border shrink-0">
+              <td class="px-4 py-2 w-[180px] text-[11px] text-muted-foreground/80 font-mono bg-muted/2 border-r border-border shrink-0">
                 {{ formatTimestamp(row.timestamp) }}
               </td>
               <td class="px-4 py-2 font-mono text-[12px] break-all leading-relaxed">
                 <div class="flex items-center gap-2">
+                  <!-- TX/RX Indicator Badge -->
+                  <div 
+                    :class="[
+                      'flex items-center justify-center w-8 h-4 rounded-sm text-[9px] font-black uppercase tracking-tighter shrink-0',
+                      row.type === 'tx' ? 'bg-blue-500/30 text-blue-400 border border-blue-500/30' : 'bg-emerald-500/30 text-emerald-400 border border-emerald-500/30'
+                    ]"
+                  >
+                    {{ row.type === 'tx' ? 'TX' : 'RX' }}
+                  </div>
+
                   <Badge 
-                    v-if="row.data.startsWith('[SIM]')" 
+                    v-if="row.data.includes('[SIM]')" 
                     variant="outline" 
                     class="h-4 px-1 text-[8px] font-bold border-primary/30 text-primary bg-primary/5 uppercase shrink-0"
                   >
                     Sim
                   </Badge>
-                  <span class="opacity-90">{{ row.data.startsWith('[SIM]') ? row.data.replace('[SIM] ', '') : row.data }}</span>
+
+                  <span 
+                    :class="[
+                      'font-medium tracking-tight',
+                      row.type === 'tx' ? 'text-blue-400' : 'text-emerald-400'
+                    ]"
+                  >
+                    {{ row.data.includes('[SIM]') ? row.data.replace('[SIM] ', '') : row.data }}
+                  </span>
                 </div>
               </td>
             </tr>

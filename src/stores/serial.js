@@ -44,6 +44,8 @@ export const useSerialStore = defineStore("serial", () => {
         parity.value = saved.parity || "none";
         stopBits.value = saved.stopBits || 1;
         dataBits.value = saved.dataBits || 8;
+        txEnabled.value = saved.txEnabled !== undefined ? saved.txEnabled : true;
+        rxEnabled.value = saved.rxEnabled !== undefined ? saved.rxEnabled : true;
       }
 
       const simMode = await store.get(SIMULATION_KEY);
@@ -67,6 +69,8 @@ export const useSerialStore = defineStore("serial", () => {
         parity: parity.value,
         stopBits: stopBits.value,
         dataBits: dataBits.value,
+        txEnabled: txEnabled.value,
+        rxEnabled: rxEnabled.value,
       });
       await store.set(SIMULATION_KEY, isSimulationMode.value);
       await store.save();
@@ -77,7 +81,7 @@ export const useSerialStore = defineStore("serial", () => {
   }
 
   // Watch for changes and save
-  watch([baudRate, parity, stopBits, dataBits, isSimulationMode], () => {
+  watch([baudRate, parity, stopBits, dataBits, isSimulationMode, txEnabled, rxEnabled], () => {
     saveSettings();
   });
 
@@ -165,14 +169,16 @@ export const useSerialStore = defineStore("serial", () => {
     if (selectedDevice.value === VIRTUAL_DEVICE) {
       // Mock response for simulation
       const mockResponse = `[SIM] ACK: Received "${data.trim()}" at ${new Date().toLocaleTimeString()}`;
+      addReceivedData(data, "tx", true); // Log the transmitted data (always force)
       setTimeout(() => {
-        addReceivedData(mockResponse, true); // Force add to logs
+        addReceivedData(mockResponse, "rx", true); // Force add to logs
       }, 100);
       return true;
     }
 
     try {
       await invoke("send_serial_data", { data });
+      addReceivedData(data, "tx", true); // Log the transmitted data (always force)
       return true;
     } catch (error) {
       console.error("Failed to send data:", error);
@@ -186,11 +192,12 @@ export const useSerialStore = defineStore("serial", () => {
 
     const timestamp = new Date().toISOString();
 
-    // Create new entries with unique IDs
-    const newEntries = pendingData.value.map((data, index) => ({
+    // Create new entries with unique IDs and types
+    const newEntries = pendingData.value.map((item, index) => ({
       id: `${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp,
-      data,
+      data: item.data,
+      type: item.type || "rx",
     }));
 
     // Update state with a new array reference to ensure reactivity
@@ -207,10 +214,11 @@ export const useSerialStore = defineStore("serial", () => {
     throttleTimeout = null;
   }
 
-  function addReceivedData(data, force = false) {
-    if (!rxEnabled.value && !force) return;
+  function addReceivedData(data, type = "rx", force = false) {
+    if (type === "rx" && !rxEnabled.value && !force) return;
+    if (type === "tx" && !txEnabled.value && !force) return;
 
-    pendingData.value.push(data);
+    pendingData.value.push({ data, type });
 
     if (!throttleTimeout) {
       // Use requestAnimationFrame for smoother UI updates
@@ -243,10 +251,10 @@ export const useSerialStore = defineStore("serial", () => {
       if (path.endsWith(".json")) {
         content = JSON.stringify(receivedData.value, null, 2);
       } else {
-        // CSV Format: Timestamp, Data
-        content = "Timestamp,Data\n";
+        // CSV Format: Timestamp, Type, Data
+        content = "Timestamp,Type,Data\n";
         content += receivedData.value
-          .map((item) => `"${item.timestamp}","${item.data.replace(/"/g, '""')}"`)
+          .map((item) => `"${item.timestamp}","${item.type || "rx"}","${item.data.replace(/"/g, '""')}"`)
           .join("\n");
       }
 
