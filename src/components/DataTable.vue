@@ -230,13 +230,6 @@ onMounted(() => {
               
               <TableCell class="font-mono text-[12px] py-1">
                 <div class="flex items-center gap-2">
-                  <Badge 
-                    v-if="row.data.includes('[SIM]')" 
-                    variant="outline" 
-                    class="h-5 px-1 text-[8px] font-bold border-primary/30 text-primary bg-primary/5 uppercase"
-                  >
-                    Sim
-                  </Badge>
                   <span 
                     :class="[
                       'tracking-tight break-all leading-tight',
