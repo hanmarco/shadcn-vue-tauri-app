@@ -192,12 +192,13 @@ export const useSerialStore = defineStore("serial", () => {
 
     const timestamp = new Date().toISOString();
 
-    // Create new entries with unique IDs and types
+    // Create new entries with unique IDs, types, and ports
     const newEntries = pendingData.value.map((item, index) => ({
       id: `${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp,
       data: item.data,
       type: item.type || "rx",
+      port: item.port || "Unknown",
     }));
 
     // Update state with a new array reference to ensure reactivity
@@ -218,7 +219,11 @@ export const useSerialStore = defineStore("serial", () => {
     if (type === "rx" && !rxEnabled.value && !force) return;
     if (type === "tx" && !txEnabled.value && !force) return;
 
-    pendingData.value.push({ data, type });
+    // Get current port name (only the COMx part if possible)
+    const portName = selectedDevice.value || "Unknown";
+    const actualPort = portName.includes(" (") ? portName.split(" (")[0] : portName;
+
+    pendingData.value.push({ data, type, port: actualPort });
 
     if (!throttleTimeout) {
       // Use requestAnimationFrame for smoother UI updates
@@ -251,10 +256,10 @@ export const useSerialStore = defineStore("serial", () => {
       if (path.endsWith(".json")) {
         content = JSON.stringify(receivedData.value, null, 2);
       } else {
-        // CSV Format: Timestamp, Type, Data
-        content = "Timestamp,Type,Data\n";
+        // CSV Format: Timestamp, Type, Port, Data
+        content = "Timestamp,Type,Port,Data\n";
         content += receivedData.value
-          .map((item) => `"${item.timestamp}","${item.type || "rx"}","${item.data.replace(/"/g, '""')}"`)
+          .map((item) => `"${item.timestamp}","${item.type || "rx"}","${item.port || "Unknown"}","${item.data.replace(/"/g, '""')}"`)
           .join("\n");
       }
 
