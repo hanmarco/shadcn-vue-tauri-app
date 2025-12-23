@@ -13,6 +13,7 @@ export const useSerialStore = defineStore("serial", () => {
   const connectedDevices = ref([]);
   const selectedDevice = ref(null);
   const isConnected = ref(false);
+  const lastConnectedDevice = ref(null);
   const baudRate = ref(9600);
   const parity = ref("none");
   const stopBits = ref(1);
@@ -60,6 +61,13 @@ export const useSerialStore = defineStore("serial", () => {
         ft260I2cSpeed.value = saved.ft260I2cSpeed || 400;
         txEnabled.value = saved.txEnabled !== undefined ? saved.txEnabled : true;
         rxEnabled.value = saved.rxEnabled !== undefined ? saved.rxEnabled : true;
+
+        if (saved.selectedDevice) {
+          selectedDevice.value = saved.selectedDevice;
+        }
+        if (saved.lastConnectedDevice) {
+          lastConnectedDevice.value = saved.lastConnectedDevice;
+        }
       }
 
       const simMode = await store.get(SIMULATION_KEY);
@@ -90,6 +98,8 @@ export const useSerialStore = defineStore("serial", () => {
         ft260I2cSpeed: ft260I2cSpeed.value,
         txEnabled: txEnabled.value,
         rxEnabled: rxEnabled.value,
+        selectedDevice: selectedDevice.value,
+        lastConnectedDevice: lastConnectedDevice.value,
       });
       await store.set(SIMULATION_KEY, isSimulationMode.value);
       await store.save();
@@ -103,7 +113,7 @@ export const useSerialStore = defineStore("serial", () => {
   watch([
     baudRate, parity, stopBits, dataBits, deviceType,
     ftdiChannel, ftdiMode, ft260Mode, ft260I2cSpeed,
-    isSimulationMode, txEnabled, rxEnabled
+    isSimulationMode, txEnabled, rxEnabled, selectedDevice, lastConnectedDevice
   ], () => {
     saveSettings();
   });
@@ -146,6 +156,7 @@ export const useSerialStore = defineStore("serial", () => {
         // Simulation mode: artificial delay
         await new Promise(resolve => setTimeout(resolve, 800));
         selectedDevice.value = portName;
+        lastConnectedDevice.value = portName;
         isConnected.value = true;
         toast.success("시뮬레이션 모드 연결 성공", {
           description: "가상 디바이스에 연결되었습니다.",
@@ -168,6 +179,7 @@ export const useSerialStore = defineStore("serial", () => {
         ft260I2cSpeed: ft260I2cSpeed.value,
       });
       selectedDevice.value = portName;
+      lastConnectedDevice.value = portName;
       isConnected.value = true;
       connectionError.value = null;
       toast.success("장치 연결 성공", {
@@ -190,6 +202,13 @@ export const useSerialStore = defineStore("serial", () => {
 
   async function disconnect() {
     try {
+      if (selectedDevice.value) {
+        // 값을 복사해서 저장하여 selectedDevice가 null이 되어도 유지되도록 함
+        lastConnectedDevice.value = typeof selectedDevice.value === 'object'
+          ? JSON.parse(JSON.stringify(selectedDevice.value))
+          : selectedDevice.value;
+      }
+
       if (selectedDevice.value === VIRTUAL_DEVICE) {
         isConnected.value = false;
         selectedDevice.value = null;
@@ -198,10 +217,12 @@ export const useSerialStore = defineStore("serial", () => {
 
       await invoke("disconnect_serial");
       isConnected.value = false;
-      selectedDevice.value = null;
+
       toast.info("장치 연결 해제", {
         description: "통신 포트 연결이 종료되었습니다.",
       });
+
+      selectedDevice.value = null; // Clear selection on disconnect
       return true;
     } catch (error) {
       console.error("Failed to disconnect:", error);
@@ -336,6 +357,7 @@ export const useSerialStore = defineStore("serial", () => {
     connectedDevices,
     selectedDevice,
     isConnected,
+    lastConnectedDevice,
     baudRate,
     parity,
     stopBits,

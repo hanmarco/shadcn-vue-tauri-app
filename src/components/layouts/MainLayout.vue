@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted } from "vue";
+import { toast } from "vue-sonner";
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarItem } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,17 +30,59 @@ const isDark = useDark();
 const toggleDark = useToggle(isDark);
 
 onMounted(async () => {
+  await serialStore.loadSettings();
   await serialStore.setupEventListeners();
   await serialStore.scanDevices();
 });
+
+const handleConnection = () => {
+  if (serialStore.isConnected) {
+    serialStore.disconnect();
+  } else {
+    const target = serialStore.selectedDevice || serialStore.lastConnectedDevice;
+
+    if (target) {
+      serialStore.connect(target);
+    } else if (serialStore.deviceType !== 'serialport') {
+      serialStore.connect('Default IC');
+    } else {
+      serialStore.scanDevices();
+    }
+  }
+};
 </script>
 
 <template>
   <div class="flex h-screen w-full overflow-hidden bg-background">
     <!-- Sidebar -->
     <Sidebar>
-      <SidebarHeader class="border-b px-6 py-4">
+      <SidebarHeader class="border-b px-6 py-4 flex flex-row items-center justify-between">
         <h2 class="text-xl font-bold tracking-tight">IC CONTROLLER</h2>
+        <div 
+          class="flex items-center gap-2 cursor-pointer group active:scale-95 transition-transform"
+          @click="handleConnection"
+        >
+          <span 
+            class="h-2.5 w-2.5 rounded-full transition-all duration-300"
+            :class="[
+              serialStore.isConnected 
+                ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse' 
+                : serialStore.isConnecting
+                ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)] animate-pulse'
+                : 'bg-muted-foreground/30'
+            ]"
+          ></span>
+          <span 
+            class="text-[10px] font-bold uppercase tracking-widest transition-colors select-none"
+            :class="[
+              serialStore.isConnected ? 'text-green-500' : 
+              serialStore.isConnecting ? 'text-yellow-500 animate-pulse' :
+              'text-muted-foreground/50 group-hover:text-muted-foreground'
+            ]"
+          >
+            {{ serialStore.isConnected ? 'Online' : serialStore.isConnecting ? 'Connecting...' : 'Offline' }}
+          </span>
+        </div>
       </SidebarHeader>
       <SidebarContent class="py-4">
         <div class="px-3 py-2">

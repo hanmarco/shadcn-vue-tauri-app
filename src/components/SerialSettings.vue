@@ -47,10 +47,13 @@ const ft260I2cSpeeds = [100, 400, 1000, 3400];
 async function handleConnect() {
   if (serialStore.isConnected) {
     await serialStore.disconnect();
-  } else if (serialStore.selectedDevice || serialStore.deviceType !== 'serialport') {
-    // For non-serialport modes, we might need different connection logic later, 
-    // but for now we use the selectedDevice if available or handle standard connection
-    await serialStore.connect(serialStore.selectedDevice || "Selected IC");
+  } else {
+    const target = serialStore.selectedDevice || serialStore.lastConnectedDevice || 
+      (serialStore.deviceType !== 'serialport' ? 'Selected IC' : null);
+  
+    if (target) {
+      await serialStore.connect(target);
+    }
   }
 }
 
@@ -102,6 +105,11 @@ const handleRefresh = async () => {
     <!-- [1] Standard Serial Port 전용 화면 -->
     <template v-if="serialStore.deviceType === 'serialport'">
       <!-- 장치 선택 섹션 -->
+      <!-- 최근 연결 정보 -->
+      <div v-if="serialStore.lastConnectedDevice" class="mb-2 px-2 py-1.5 bg-muted/40 rounded border border-dashed border-primary/20 flex items-center gap-2">
+        <span class="text-[10px] uppercase font-bold text-muted-foreground/70 tracking-tighter">Recent:</span>
+        <span class="text-xs font-mono font-medium text-primary/80">{{ serialStore.lastConnectedDevice }}</span>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle class="flex items-center gap-2">
