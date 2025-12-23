@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { toast } from "vue-sonner";
 import { save } from "@tauri-apps/plugin-dialog";
 import { LazyStore } from "@tauri-apps/plugin-store";
 
@@ -146,6 +147,9 @@ export const useSerialStore = defineStore("serial", () => {
         await new Promise(resolve => setTimeout(resolve, 800));
         selectedDevice.value = portName;
         isConnected.value = true;
+        toast.success("시뮬레이션 모드 연결 성공", {
+          description: "가상 디바이스에 연결되었습니다.",
+        });
         return true;
       }
 
@@ -166,11 +170,18 @@ export const useSerialStore = defineStore("serial", () => {
       selectedDevice.value = portName;
       isConnected.value = true;
       connectionError.value = null;
+      toast.success("장치 연결 성공", {
+        description: `${actualPortName} 포트에 연결되었습니다.`,
+      });
       return true;
     } catch (error) {
       console.error("Failed to connect:", error);
       isConnected.value = false;
-      connectionError.value = error.toString();
+      const errorMsg = error.toString();
+      connectionError.value = errorMsg;
+      toast.error("연결 실패", {
+        description: errorMsg,
+      });
       return false;
     } finally {
       isConnecting.value = false;
@@ -188,6 +199,9 @@ export const useSerialStore = defineStore("serial", () => {
       await invoke("disconnect_serial");
       isConnected.value = false;
       selectedDevice.value = null;
+      toast.info("장치 연결 해제", {
+        description: "통신 포트 연결이 종료되었습니다.",
+      });
       return true;
     } catch (error) {
       console.error("Failed to disconnect:", error);
@@ -271,7 +285,9 @@ export const useSerialStore = defineStore("serial", () => {
 
   async function exportLogs() {
     if (receivedData.value.length === 0) {
-      alert("내보낼 로그 데이터가 없습니다.");
+      toast.warning("로그 데이터 없음", {
+        description: "내보낼 데이터가 존재하지 않습니다.",
+      });
       return;
     }
 
@@ -298,10 +314,14 @@ export const useSerialStore = defineStore("serial", () => {
       }
 
       await invoke("save_log_to_file", { path, content });
-      alert("로그가 성공적으로 저장되었습니다.");
+      toast.success("로그 저장 완료", {
+        description: "파일이 성공적으로 저장되었습니다.",
+      });
     } catch (error) {
       console.error("Failed to export logs:", error);
-      alert(`저장 실패: ${error}`);
+      toast.error("저장 실패", {
+        description: error.toString(),
+      });
     }
   }
 

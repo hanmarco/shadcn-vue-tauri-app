@@ -6,10 +6,13 @@ import ControlPanel from "@/components/ControlPanel.vue";
 import DataTable from "@/components/DataTable.vue";
 import RegisterMap from "@/components/RegisterMap.vue";
 
+import { Toaster } from "@/components/ui/sonner";
+
 const activeTab = ref("config");
 </script>
 
 <template>
+  <Toaster position="top-right" close-button rich-colors expand />
   <MainLayout v-model:activeTab="activeTab">
     <div class="h-full flex flex-col overflow-hidden">
       <!-- Configuration View -->
