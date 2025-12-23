@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 // 시리얼 포트 상태 관리
 // 통신 브릿지: 다양한 하드웨어 인터페이스 추상화
@@ -453,6 +453,32 @@ pub fn run() {
             write_register,
             save_log_to_file
         ])
+        .setup(|app| {
+            // DLL 검색 경로에 리소스 디렉토리 추가 (윈도우 전용)
+            #[cfg(windows)]
+            {
+                use std::os::windows::ffi::OsStrExt;
+                let resource_dir = app.path().resource_dir().unwrap_or_default();
+                let mut path_u16: Vec<u16> = resource_dir.as_os_str().encode_wide().collect();
+                path_u16.push(0); // Null terminator
+
+                extern "system" {
+                    fn SetDllDirectoryW(lpPathName: *const u16) -> i32;
+                }
+
+                unsafe {
+                    SetDllDirectoryW(path_u16.as_ptr());
+                }
+                println!("Resource dir added to DLL search path: {:?}", resource_dir);
+            }
+
+            if let Some(window) = app.get_webview_window("main") {
+                let package_info = app.package_info();
+                let title = format!("IC 제어 앱 v{}", package_info.version);
+                let _ = window.set_title(&title);
+            }
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
