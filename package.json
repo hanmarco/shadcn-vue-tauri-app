@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev --target i686-pc-windows-msvc",
+    "tauri:build": "tauri build --target i686-pc-windows-msvc"
   },
   "dependencies": {
     "@tanstack/vue-table": "^8.21.3",
