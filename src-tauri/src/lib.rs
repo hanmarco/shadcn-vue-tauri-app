@@ -1,3 +1,4 @@
+use libftd2xx::FtdiCommon;
 use serialport::{SerialPort, SerialPortType};
 use std::fs::File;
 use std::io::{Read, Write};
@@ -12,6 +13,7 @@ use tauri::{AppHandle, Emitter};
 enum CommBridge {
     Serial(Box<dyn SerialPort>),
     Hid(hidapi::HidDevice),
+    Ftdi(libftd2xx::Ftdi), // FT2232D/H 공통 핸들
 }
 
 // 시리얼 포트 상태 관리
@@ -162,6 +164,15 @@ fn connect_device(
                 .map_err(|e| format!("Failed to open FT260: {}", e))?;
             CommBridge::Hid(device)
         }
+        "ft2232d" | "ft2232h" => {
+            let channel_name = ftdi_channel.as_deref().unwrap_or("A");
+            let channel_idx = if channel_name == "B" { 1 } else { 0 };
+
+            let device = libftd2xx::Ftdi::with_index(channel_idx as i32)
+                .map_err(|e| format!("Failed to open FTDI Channel {}: {:?}", channel_name, e))?;
+
+            CommBridge::Ftdi(device)
+        }
         _ => return Err(format!("Unsupported device type: {}", device_type)),
     };
 
@@ -200,6 +211,16 @@ fn connect_device(
                             let data = hex::encode(&buffer[..bytes_read]); // 바이너리 앱의 경우 헥사 표시 선호
                             let _ =
                                 app_clone.emit("serial-data-received", format!("[HID] {}", data));
+                        }
+                        _ => {}
+                    }
+                }
+                CommBridge::Ftdi(ftdi_dev) => {
+                    // FTDI D2XX 읽기
+                    match ftdi_dev.read(&mut buffer) {
+                        Ok(bytes_read) if bytes_read > 0 => {
+                            let data = String::from_utf8_lossy(&buffer[..bytes_read]);
+                            let _ = app_clone.emit("serial-data-received", data.to_string());
                         }
                         _ => {}
                     }
@@ -246,6 +267,11 @@ fn send_serial_data(data: String, state: tauri::State<AppState>) -> Result<(), S
                     .write(&buf)
                     .map_err(|e| format!("Failed to write to HID: {}", e))?;
             }
+            CommBridge::Ftdi(ftdi_dev) => {
+                ftdi_dev
+                    .write(data.as_bytes())
+                    .map_err(|e| format!("Failed to write to FTDI: {:?}", e))?;
+            }
         }
         Ok(())
     } else {
@@ -270,6 +296,11 @@ async fn set_voltage(state: tauri::State<'_, AppState>, value: f64) -> Result<()
                 buf[1..].copy_from_slice(cmd.as_bytes());
                 hid_dev.write(&buf).map_err(|e| e.to_string())?;
             }
+            CommBridge::Ftdi(ftdi_dev) => {
+                ftdi_dev
+                    .write(cmd.as_bytes())
+                    .map_err(|e| format!("{:?}", e))?;
+            }
         }
         Ok(())
     } else {
@@ -292,6 +323,11 @@ async fn set_frequency(state: tauri::State<'_, AppState>, value: u64) -> Result<
                 let mut buf = vec![0u8; cmd.len() + 1];
                 buf[1..].copy_from_slice(cmd.as_bytes());
                 hid_dev.write(&buf).map_err(|e| e.to_string())?;
+            }
+            CommBridge::Ftdi(ftdi_dev) => {
+                ftdi_dev
+                    .write(cmd.as_bytes())
+                    .map_err(|e| format!("{:?}", e))?;
             }
         }
         Ok(())
@@ -316,6 +352,11 @@ async fn set_register(state: tauri::State<'_, AppState>, value: u32) -> Result<(
                 buf[1..].copy_from_slice(cmd.as_bytes());
                 hid_dev.write(&buf).map_err(|e| e.to_string())?;
             }
+            CommBridge::Ftdi(ftdi_dev) => {
+                ftdi_dev
+                    .write(cmd.as_bytes())
+                    .map_err(|e| format!("{:?}", e))?;
+            }
         }
         Ok(())
     } else {
@@ -338,6 +379,11 @@ async fn read_register(state: tauri::State<'_, AppState>, address: u32) -> Resul
                 let mut buf = vec![0u8; cmd.len() + 1];
                 buf[1..].copy_from_slice(cmd.as_bytes());
                 hid_dev.write(&buf).map_err(|e| e.to_string())?;
+            }
+            CommBridge::Ftdi(ftdi_dev) => {
+                ftdi_dev
+                    .write(cmd.as_bytes())
+                    .map_err(|e| format!("{:?}", e))?;
             }
         }
         Ok(0)
@@ -365,6 +411,11 @@ async fn write_register(
                 let mut buf = vec![0u8; cmd.len() + 1];
                 buf[1..].copy_from_slice(cmd.as_bytes());
                 hid_dev.write(&buf).map_err(|e| e.to_string())?;
+            }
+            CommBridge::Ftdi(ftdi_dev) => {
+                ftdi_dev
+                    .write(cmd.as_bytes())
+                    .map_err(|e| format!("{:?}", e))?;
             }
         }
         Ok(())
