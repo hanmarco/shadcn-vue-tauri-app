@@ -12,7 +12,7 @@ const activeTab = ref("config");
 </script>
 
 <template>
-  <Toaster position="bottom-right" close-button expand />
+  <Toaster position="bottom-right" close-button rich-colors />
   <MainLayout v-model:activeTab="activeTab">
     <div class="h-full flex flex-col overflow-hidden">
       <!-- Configuration View -->
