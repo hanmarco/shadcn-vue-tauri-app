@@ -65,7 +65,7 @@ const handleRefresh = async () => {
 <template>
   <div class="space-y-6 m-6 pb-12">
     <!-- 통신 모드 선택 (공통) -->
-    <Card class="border-primary/20 bg-primary/2">
+    <Card :class="['border-primary/20 transition-colors', serialStore.isConnected ? 'bg-muted/50 opacity-70' : 'bg-primary/2']">
       <CardHeader class="pb-3">
         <div class="flex items-center justify-between">
           <div class="space-y-1">
@@ -105,7 +105,7 @@ const handleRefresh = async () => {
     <!-- [1] Standard Serial Port 전용 화면 -->
     <template v-if="serialStore.deviceType === 'serialport'">
       <!-- 장치 선택 섹션 -->
-      <Card>
+      <Card :class="['transition-colors', serialStore.isConnected ? 'bg-muted/50 opacity-80' : '']">
         <CardHeader>
           <CardTitle class="flex items-center gap-2">
             <UsbIcon class="h-5 w-5 text-primary" />
@@ -186,7 +186,7 @@ const handleRefresh = async () => {
       </Card>
 
       <!-- 시리얼 통신 설정 섹션 -->
-      <Card>
+      <Card :class="['transition-colors', serialStore.isConnected ? 'bg-muted/50 opacity-80' : '']">
         <CardHeader>
           <CardTitle>시리얼 통신 설정</CardTitle>
           <CardDescription>Baud Rate, Parity, Stop Bit 등 세부 통신 파라미터 설정</CardDescription>
@@ -265,7 +265,7 @@ const handleRefresh = async () => {
 
     <!-- [2] FTDI FT2232D/H 전용 설정 화면 -->
     <template v-else-if="serialStore.deviceType.startsWith('ft2232')">
-      <Card>
+      <Card :class="['transition-colors', serialStore.isConnected ? 'bg-muted/50 opacity-80' : '']">
         <CardHeader>
           <CardTitle class="flex items-center gap-2">
             <CpuIcon class="h-5 w-5 text-primary" />
@@ -329,7 +329,7 @@ const handleRefresh = async () => {
 
     <!-- [3] FT260 전용 설정 화면 -->
     <template v-else-if="serialStore.deviceType === 'ft260'">
-      <Card>
+      <Card :class="['transition-colors', serialStore.isConnected ? 'bg-muted/50 opacity-80' : '']">
         <CardHeader>
           <CardTitle class="flex items-center gap-2">
             <CpuIcon class="h-5 w-5 text-primary" />
