@@ -1,10 +1,11 @@
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, computed } from "vue";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Select, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useSerialStore } from "@/stores/serial";
 import { 
   UsbIcon, 
@@ -32,6 +33,17 @@ const parities = [
 ];
 const stopBitsOptions = [1, 2];
 const dataBitsOptions = [5, 6, 7, 8];
+const flowControlOptions = [
+  { value: "none", label: "None" },
+  { value: "hardware", label: "Hardware (RTS/CTS)" },
+  { value: "software", label: "Software (XON/XOFF)" },
+];
+const lineEndingOptions = [
+  { value: "LF", label: "LF (\\n)" },
+  { value: "CRLF", label: "CRLF (\\r\\n)" },
+  { value: "CR", label: "CR (\\r)" },
+  { value: "NONE", label: "None" },
+];
 const deviceTypes = [
   { value: "serialport", label: "Standard Serial Port", description: "Default RS232/UART Communication" },
   { value: "ft2232d", label: "FTDI FT2232D", description: "Dual USB to UART/FIFO IC" },
@@ -43,6 +55,37 @@ const ftdiChannels = ["A", "B"];
 const ftdiModes = ["UART", "Bitbang", "MPSSE", "I2C", "SPI"];
 const ft260Modes = ["I2C", "UART"];
 const ft260I2cSpeeds = [100, 400, 1000, 3400];
+
+const protocolModes = [
+  { value: "rffe", label: "RFFE (mode 1)" },
+  { value: "spi", label: "SPI (mode 2)" },
+  { value: "i3c", label: "I3C (mode 3)" },
+];
+
+const vioOptionsByMode = {
+  rffe: [
+    { value: 0, label: "External VIO (0)" },
+    { value: 1, label: "Internal 1.2V (1)" },
+    { value: 2, label: "Internal 1.8V (2)" },
+  ],
+  spi: [
+    { value: 0, label: "External VIO (0)" },
+    { value: 1, label: "Internal 1.2V (1)" },
+    { value: 2, label: "Internal 1.8V (2)" },
+    { value: 3, label: "Internal 2.5V (3)" },
+    { value: 4, label: "Internal 3.3V (4)" },
+  ],
+  i3c: [
+    { value: 0, label: "External VIO (0)" },
+    { value: 1, label: "Internal 1.2V (1)" },
+    { value: 2, label: "Internal 1.8V (2)" },
+    { value: 4, label: "Internal 3.3V (4)" },
+  ],
+};
+
+const vioOptions = computed(() => {
+  return vioOptionsByMode[serialStore.protocolMode] || vioOptionsByMode.rffe;
+});
 
 async function handleConnect() {
   if (serialStore.isConnected) {
@@ -191,7 +234,7 @@ const handleRefresh = async () => {
           <CardTitle>시리얼 통신 설정</CardTitle>
           <CardDescription>Baud Rate, Parity, Stop Bit 등 세부 통신 파라미터 설정</CardDescription>
         </CardHeader>
-        <CardContent class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <CardContent class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div class="space-y-2">
             <label class="text-sm font-medium">Baud Rate</label>
             <Select
@@ -258,6 +301,294 @@ const handleRefresh = async () => {
                 {{ bits }}
               </SelectItem>
             </Select>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Flow Control</label>
+            <Select
+              v-model="serialStore.flowControl"
+              :disabled="serialStore.isConnected"
+              placeholder="Flow Control 선택"
+            >
+              <SelectItem
+                v-for="opt in flowControlOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </SelectItem>
+            </Select>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Line Ending</label>
+            <Select
+              v-model="serialStore.lineEnding"
+              :disabled="serialStore.isConnected"
+              placeholder="Line Ending 선택"
+            >
+              <SelectItem
+                v-for="opt in lineEndingOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </SelectItem>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <!-- SC4415 프로토콜 설정 -->
+      <Card :class="['transition-colors', serialStore.isConnected ? 'bg-muted/50 opacity-80' : '']">
+        <CardHeader>
+          <CardTitle>SC4415 통신 설정</CardTitle>
+          <CardDescription>모드/VIO/클럭 및 프로토콜별 파라미터 설정</CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-6">
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Mode</label>
+              <Select v-model="serialStore.protocolMode">
+                <SelectItem v-for="mode in protocolModes" :key="mode.value" :value="mode.value">
+                  {{ mode.label }}
+                </SelectItem>
+              </Select>
+            </div>
+
+            <div class="space-y-2">
+              <label class="text-sm font-medium">VIO</label>
+              <Select v-model="serialStore.vioSetting">
+                <SelectItem v-for="opt in vioOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </SelectItem>
+              </Select>
+            </div>
+          </div>
+
+          <Separator />
+
+          <!-- RFFE Settings -->
+          <div v-if="serialStore.protocolMode === 'rffe'" class="grid gap-4 md:grid-cols-2">
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Clock (kHz)</label>
+              <input
+                v-model.number="serialStore.rffeClockKHz"
+                type="number"
+                min="100"
+                max="60000"
+                class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm font-medium">HSDR</label>
+              <div class="flex items-center gap-3">
+                <Switch v-model="serialStore.rffeHsdr" />
+                <span class="text-xs text-muted-foreground">{{ serialStore.rffeHsdr ? "Enable" : "Disable" }}</span>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Slave Address (SA)</label>
+              <input
+                v-model.number="serialStore.rffeSlaveAddress"
+                type="number"
+                min="0"
+                max="15"
+                class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Register Address</label>
+              <input
+                v-model.number="serialStore.rffeRegisterAddress"
+                type="number"
+                min="0"
+                max="31"
+                class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+
+          <!-- SPI Settings -->
+          <div v-else-if="serialStore.protocolMode === 'spi'" class="space-y-4">
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Clock (kHz)</label>
+                <input
+                  v-model.number="serialStore.spiClockKHz"
+                  type="number"
+                  min="50"
+                  max="26000"
+                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium">SPI Mode</label>
+                <Select v-model="serialStore.spiMode">
+                  <SelectItem v-for="mode in [0,1,2,3]" :key="mode" :value="mode">
+                    Mode {{ mode }}
+                  </SelectItem>
+                </Select>
+              </div>
+            </div>
+            <div class="grid gap-4 md:grid-cols-4">
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Select</label>
+                <Select v-model="serialStore.spiSelect">
+                  <SelectItem v-for="sel in [1,2]" :key="sel" :value="sel">
+                    {{ sel }}
+                  </SelectItem>
+                </Select>
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Select Polarity</label>
+                <Select v-model="serialStore.spiSelPol">
+                  <SelectItem v-for="pol in [0,1]" :key="pol" :value="pol">
+                    {{ pol }}
+                  </SelectItem>
+                </Select>
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium">CMD Width (bits)</label>
+                <input
+                  v-model.number="serialStore.spiCmdWidth"
+                  type="number"
+                  min="0"
+                  max="16"
+                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium">ADDR Width (bits)</label>
+                <input
+                  v-model.number="serialStore.spiAddrWidth"
+                  type="number"
+                  min="0"
+                  max="16"
+                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+            <div class="grid gap-4 md:grid-cols-3">
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Write Width</label>
+                <Select v-model="serialStore.spiWriteWidth">
+                  <SelectItem v-for="width in [0,1,2,3]" :key="width" :value="width">
+                    {{ width === 0 ? "None" : width === 1 ? "1 byte" : width === 2 ? "2 bytes" : "4 bytes" }}
+                  </SelectItem>
+                </Select>
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Read Width</label>
+                <Select v-model="serialStore.spiReadWidth">
+                  <SelectItem v-for="width in [0,1,2,3]" :key="width" :value="width">
+                    {{ width === 0 ? "None" : width === 1 ? "1 byte" : width === 2 ? "2 bytes" : "4 bytes" }}
+                  </SelectItem>
+                </Select>
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Wait Cycles</label>
+                <input
+                  v-model.number="serialStore.spiWaitCycles"
+                  type="number"
+                  min="0"
+                  max="255"
+                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Write CMD</label>
+                <input
+                  v-model.number="serialStore.spiCommand"
+                  type="number"
+                  min="0"
+                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Write ADDR</label>
+                <input
+                  v-model.number="serialStore.spiAddress"
+                  type="number"
+                  min="0"
+                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- I3C Settings -->
+          <div v-else class="space-y-4">
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="space-y-2">
+                <label class="text-sm font-medium">I3C Rate Index</label>
+                <input
+                  v-model.number="serialStore.i3cRateIndex"
+                  type="number"
+                  min="0"
+                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium">I2C Rate Index</label>
+                <input
+                  v-model.number="serialStore.i2cRateIndex"
+                  type="number"
+                  min="0"
+                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Pull-up (Ω)</label>
+                <input
+                  v-model.number="serialStore.i3cPullup"
+                  type="number"
+                  min="0"
+                  max="4500"
+                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Error Message</label>
+                <div class="flex items-center gap-3">
+                  <Switch v-model="serialStore.i3cErrMsg" />
+                  <span class="text-xs text-muted-foreground">{{ serialStore.i3cErrMsg ? "Enable" : "Disable" }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="grid gap-4 md:grid-cols-3">
+              <div class="space-y-2">
+                <label class="text-sm font-medium">SDR Index</label>
+                <input
+                  v-model.number="serialStore.i3cIndex"
+                  type="number"
+                  min="0"
+                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium">CMB</label>
+                <Select v-model="serialStore.i3cCmb">
+                  <SelectItem v-for="cmb in [0,1]" :key="cmb" :value="cmb">
+                    {{ cmb }}
+                  </SelectItem>
+                </Select>
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Byte Count</label>
+                <input
+                  v-model.number="serialStore.i3cByteCount"
+                  type="number"
+                  min="1"
+                  max="4"
+                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

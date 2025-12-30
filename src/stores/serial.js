@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, computed, watch } from "vue";
+import { ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "vue-sonner";
@@ -18,6 +18,8 @@ export const useSerialStore = defineStore("serial", () => {
   const parity = ref("none");
   const stopBits = ref(1);
   const dataBits = ref(8);
+  const flowControl = ref("none");
+  const lineEnding = ref("LF");
   const receivedData = ref([]);
   const txEnabled = ref(true);
   const rxEnabled = ref(true);
@@ -31,6 +33,35 @@ export const useSerialStore = defineStore("serial", () => {
   const ftdiMode = ref("UART"); // 'UART', 'Bitbang', 'MPSSE'
   const ft260Mode = ref("I2C"); // 'I2C', 'UART'
   const ft260I2cSpeed = ref(400); // kHz
+
+  // Protocol settings (SC4415)
+  const protocolMode = ref("rffe"); // 'rffe', 'spi', 'i3c'
+  const vioSetting = ref(0);
+
+  const rffeClockKHz = ref(26000);
+  const rffeHsdr = ref(false);
+  const rffeSlaveAddress = ref(0);
+  const rffeRegisterAddress = ref(0);
+
+  const spiClockKHz = ref(5000);
+  const spiSelect = ref(1);
+  const spiSelPol = ref(0);
+  const spiMode = ref(0);
+  const spiCmdWidth = ref(8);
+  const spiAddrWidth = ref(8);
+  const spiWriteWidth = ref(1);
+  const spiReadWidth = ref(1);
+  const spiWaitCycles = ref(0);
+  const spiCommand = ref(0);
+  const spiAddress = ref(0);
+
+  const i3cRateIndex = ref(0);
+  const i2cRateIndex = ref(0);
+  const i3cPullup = ref(0);
+  const i3cErrMsg = ref(true);
+  const i3cIndex = ref(1);
+  const i3cByteCount = ref(1);
+  const i3cCmb = ref(0);
 
   const VIRTUAL_DEVICE = "Virtual Simulator (SIM)";
 
@@ -54,6 +85,8 @@ export const useSerialStore = defineStore("serial", () => {
         parity.value = saved.parity || "none";
         stopBits.value = saved.stopBits || 1;
         dataBits.value = saved.dataBits || 8;
+        flowControl.value = saved.flowControl || "none";
+        lineEnding.value = saved.lineEnding || "LF";
         deviceType.value = saved.deviceType || "serialport";
         ftdiChannel.value = saved.ftdiChannel || "A";
         ftdiMode.value = saved.ftdiMode || "UART";
@@ -61,6 +94,30 @@ export const useSerialStore = defineStore("serial", () => {
         ft260I2cSpeed.value = saved.ft260I2cSpeed || 400;
         txEnabled.value = saved.txEnabled !== undefined ? saved.txEnabled : true;
         rxEnabled.value = saved.rxEnabled !== undefined ? saved.rxEnabled : true;
+        protocolMode.value = saved.protocolMode || "rffe";
+        vioSetting.value = saved.vioSetting ?? 0;
+        rffeClockKHz.value = saved.rffeClockKHz ?? 26000;
+        rffeHsdr.value = saved.rffeHsdr ?? false;
+        rffeSlaveAddress.value = saved.rffeSlaveAddress ?? 0;
+        rffeRegisterAddress.value = saved.rffeRegisterAddress ?? 0;
+        spiClockKHz.value = saved.spiClockKHz ?? 5000;
+        spiSelect.value = saved.spiSelect ?? 1;
+        spiSelPol.value = saved.spiSelPol ?? 0;
+        spiMode.value = saved.spiMode ?? 0;
+        spiCmdWidth.value = saved.spiCmdWidth ?? 8;
+        spiAddrWidth.value = saved.spiAddrWidth ?? 8;
+        spiWriteWidth.value = saved.spiWriteWidth ?? 1;
+        spiReadWidth.value = saved.spiReadWidth ?? 1;
+        spiWaitCycles.value = saved.spiWaitCycles ?? 0;
+        spiCommand.value = saved.spiCommand ?? 0;
+        spiAddress.value = saved.spiAddress ?? 0;
+        i3cRateIndex.value = saved.i3cRateIndex ?? 0;
+        i2cRateIndex.value = saved.i2cRateIndex ?? 0;
+        i3cPullup.value = saved.i3cPullup ?? 0;
+        i3cErrMsg.value = saved.i3cErrMsg ?? true;
+        i3cIndex.value = saved.i3cIndex ?? 1;
+        i3cByteCount.value = saved.i3cByteCount ?? 1;
+        i3cCmb.value = saved.i3cCmb ?? 0;
 
         if (saved.selectedDevice) {
           selectedDevice.value = saved.selectedDevice;
@@ -91,6 +148,8 @@ export const useSerialStore = defineStore("serial", () => {
         parity: parity.value,
         stopBits: stopBits.value,
         dataBits: dataBits.value,
+        flowControl: flowControl.value,
+        lineEnding: lineEnding.value,
         deviceType: deviceType.value,
         ftdiChannel: ftdiChannel.value,
         ftdiMode: ftdiMode.value,
@@ -100,6 +159,30 @@ export const useSerialStore = defineStore("serial", () => {
         rxEnabled: rxEnabled.value,
         selectedDevice: selectedDevice.value,
         lastConnectedDevice: lastConnectedDevice.value,
+        protocolMode: protocolMode.value,
+        vioSetting: vioSetting.value,
+        rffeClockKHz: rffeClockKHz.value,
+        rffeHsdr: rffeHsdr.value,
+        rffeSlaveAddress: rffeSlaveAddress.value,
+        rffeRegisterAddress: rffeRegisterAddress.value,
+        spiClockKHz: spiClockKHz.value,
+        spiSelect: spiSelect.value,
+        spiSelPol: spiSelPol.value,
+        spiMode: spiMode.value,
+        spiCmdWidth: spiCmdWidth.value,
+        spiAddrWidth: spiAddrWidth.value,
+        spiWriteWidth: spiWriteWidth.value,
+        spiReadWidth: spiReadWidth.value,
+        spiWaitCycles: spiWaitCycles.value,
+        spiCommand: spiCommand.value,
+        spiAddress: spiAddress.value,
+        i3cRateIndex: i3cRateIndex.value,
+        i2cRateIndex: i2cRateIndex.value,
+        i3cPullup: i3cPullup.value,
+        i3cErrMsg: i3cErrMsg.value,
+        i3cIndex: i3cIndex.value,
+        i3cByteCount: i3cByteCount.value,
+        i3cCmb: i3cCmb.value,
       });
       await store.set(SIMULATION_KEY, isSimulationMode.value);
       await store.save();
@@ -111,8 +194,12 @@ export const useSerialStore = defineStore("serial", () => {
 
   // Watch for changes and save
   watch([
-    baudRate, parity, stopBits, dataBits, deviceType,
+    baudRate, parity, stopBits, dataBits, flowControl, lineEnding, deviceType,
     ftdiChannel, ftdiMode, ft260Mode, ft260I2cSpeed,
+    protocolMode, vioSetting, rffeClockKHz, rffeHsdr, rffeSlaveAddress, rffeRegisterAddress,
+    spiClockKHz, spiSelect, spiSelPol, spiMode, spiCmdWidth, spiAddrWidth,
+    spiWriteWidth, spiReadWidth, spiWaitCycles, spiCommand, spiAddress,
+    i3cRateIndex, i2cRateIndex, i3cPullup, i3cErrMsg, i3cIndex, i3cByteCount, i3cCmb,
     isSimulationMode, txEnabled, rxEnabled, selectedDevice, lastConnectedDevice
   ], () => {
     saveSettings();
@@ -173,6 +260,7 @@ export const useSerialStore = defineStore("serial", () => {
         parity: parity.value,
         stopBits: stopBits.value,
         dataBits: dataBits.value,
+        flowControl: flowControl.value,
         ftdiChannel: ftdiChannel.value,
         ftdiMode: ftdiMode.value,
         ft260Mode: ft260Mode.value,
@@ -230,15 +318,30 @@ export const useSerialStore = defineStore("serial", () => {
     }
   }
 
+  function applyLineEnding(data) {
+    const ending = lineEnding.value === "CRLF"
+      ? "\r\n"
+      : lineEnding.value === "CR"
+      ? "\r"
+      : lineEnding.value === "NONE"
+      ? ""
+      : "\n";
+
+    const normalized = data.replace(/[\r\n]+$/, "");
+    return `${normalized}${ending}`;
+  }
+
   async function sendData(data) {
     if (!isConnected.value) {
       return false;
     }
 
+    const payload = applyLineEnding(data);
+
     if (selectedDevice.value === VIRTUAL_DEVICE) {
       // Mock response for simulation
-      const mockResponse = `[SIM] ACK: Received "${data.trim()}" at ${new Date().toLocaleTimeString()}`;
-      addReceivedData(data, "tx", true); // Log the transmitted data (always force)
+      const mockResponse = `[SIM] ACK: Received "${payload.trim()}" at ${new Date().toLocaleTimeString()}`;
+      addReceivedData(payload, "tx", true); // Log the transmitted data (always force)
       setTimeout(() => {
         addReceivedData(mockResponse, "rx", true); // Force add to logs
       }, 100);
@@ -246,8 +349,8 @@ export const useSerialStore = defineStore("serial", () => {
     }
 
     try {
-      await invoke("send_serial_data", { data });
-      addReceivedData(data, "tx", true); // Log the transmitted data (always force)
+      await invoke("send_serial_data", { data: payload });
+      addReceivedData(payload, "tx", true); // Log the transmitted data (always force)
       return true;
     } catch (error) {
       console.error("Failed to send data:", error);
@@ -362,6 +465,8 @@ export const useSerialStore = defineStore("serial", () => {
     parity,
     stopBits,
     dataBits,
+    flowControl,
+    lineEnding,
     receivedData,
     txEnabled,
     rxEnabled,
@@ -373,6 +478,30 @@ export const useSerialStore = defineStore("serial", () => {
     ftdiMode,
     ft260Mode,
     ft260I2cSpeed,
+    protocolMode,
+    vioSetting,
+    rffeClockKHz,
+    rffeHsdr,
+    rffeSlaveAddress,
+    rffeRegisterAddress,
+    spiClockKHz,
+    spiSelect,
+    spiSelPol,
+    spiMode,
+    spiCmdWidth,
+    spiAddrWidth,
+    spiWriteWidth,
+    spiReadWidth,
+    spiWaitCycles,
+    spiCommand,
+    spiAddress,
+    i3cRateIndex,
+    i2cRateIndex,
+    i3cPullup,
+    i3cErrMsg,
+    i3cIndex,
+    i3cByteCount,
+    i3cCmb,
     VIRTUAL_DEVICE,
     scanDevices,
     connect,

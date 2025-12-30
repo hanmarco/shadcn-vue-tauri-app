@@ -89,6 +89,7 @@ fn connect_device(
     parity: String,
     stop_bits: u8,
     data_bits: u8,
+    flow_control: String,
     ftdi_channel: Option<String>,
     ftdi_mode: Option<String>,
     ft260_mode: Option<String>,
@@ -145,11 +146,17 @@ fn connect_device(
                 7 => serialport::DataBits::Seven,
                 _ => serialport::DataBits::Eight,
             };
+            let flow_control_setting = match flow_control.as_str() {
+                "hardware" => serialport::FlowControl::Hardware,
+                "software" => serialport::FlowControl::Software,
+                _ => serialport::FlowControl::None,
+            };
 
             let port = serialport::new(actual_name, baud_rate)
                 .parity(parity_setting)
                 .stop_bits(stop_bits_setting)
                 .data_bits(data_bits_setting)
+                .flow_control(flow_control_setting)
                 .timeout(Duration::from_millis(100))
                 .open()
                 .map_err(|e| format!("Failed to open serial port: {}", e))?;
