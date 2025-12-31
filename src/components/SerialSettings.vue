@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, computed } from "vue";
+import { onMounted, computed, ref } from "vue";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Select, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
 } from "lucide-vue-next";
 
 const serialStore = useSerialStore();
+const isRefreshing = ref(false);
 
 onMounted(async () => {
   await serialStore.loadSettings();
@@ -101,7 +102,15 @@ async function handleConnect() {
 }
 
 const handleRefresh = async () => {
-  await serialStore.scanDevices();
+  isRefreshing.value = true;
+  try {
+    await Promise.all([
+      serialStore.scanDevices(),
+      new Promise((resolve) => setTimeout(resolve, 300)),
+    ]);
+  } finally {
+    isRefreshing.value = false;
+  }
 }
 </script>
 
@@ -159,10 +168,11 @@ const handleRefresh = async () => {
         </CardHeader>
         <CardContent class="space-y-4">
           <div v-if="serialStore.connectedDevices.length === 0" class="flex flex-col items-center justify-center p-8 border border-dashed rounded-lg text-muted-foreground italic">
-            검색된 장치가 없습니다.
-            <Button variant="link" @click="handleRefresh" class="mt-2 text-primary">
-              <RefreshCwIcon class="mr-2 h-4 w-4" />
-              다시 검색
+            {{ isRefreshing ? "검색중..." : "검색된 장치가 없습니다." }}
+            <Button variant="link" @click="handleRefresh" class="mt-2 text-primary" :disabled="isRefreshing">
+              <LoaderIcon v-if="isRefreshing" class="mr-2 h-4 w-4 animate-spin" />
+              <RefreshCwIcon v-else class="mr-2 h-4 w-4" />
+              {{ isRefreshing ? "검색중..." : "다시 검색" }}
             </Button>
           </div>
           <div v-else class="grid gap-2">
@@ -220,10 +230,11 @@ const handleRefresh = async () => {
             <Button
               variant="outline"
               @click="handleRefresh"
-              :disabled="serialStore.isConnecting"
+              :disabled="serialStore.isConnecting || isRefreshing"
             >
-              <RefreshCwIcon class="mr-2 h-4 w-4" />
-              목록 새로고침
+              <LoaderIcon v-if="isRefreshing" class="mr-2 h-4 w-4 animate-spin" />
+              <RefreshCwIcon v-else class="mr-2 h-4 w-4" />
+              {{ isRefreshing ? "검색중..." : "목록 새로고침" }}
             </Button>
           </div>
         </CardContent>
