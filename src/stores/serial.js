@@ -233,6 +233,15 @@ export const useSerialStore = defineStore("serial", () => {
     connectionError.value = null;
 
     try {
+      if (portName === VIRTUAL_DEVICE && !isSimulationMode.value) {
+        const errorMsg = "Simulation mode is disabled.";
+        connectionError.value = errorMsg;
+        toast.error("연결 실패", {
+          description: errorMsg,
+        });
+        return false;
+      }
+
       if (portName === VIRTUAL_DEVICE) {
         // Simulation mode: artificial delay
         await new Promise(resolve => setTimeout(resolve, 800));

@@ -99,8 +99,13 @@ async function handleConnect() {
   if (serialStore.isConnected) {
     await serialStore.disconnect();
   } else {
-    const target = serialStore.selectedDevice || serialStore.lastConnectedDevice || 
-      (serialStore.deviceType !== 'serialport' ? 'Selected IC' : null);
+    const preferredDevice = serialStore.selectedDevice || serialStore.lastConnectedDevice;
+    const hasValidPreferred = preferredDevice && (
+      preferredDevice !== serialStore.VIRTUAL_DEVICE || serialStore.isSimulationMode
+    );
+    const target = hasValidPreferred
+      ? preferredDevice
+      : (serialStore.deviceType !== 'serialport' ? 'Selected IC' : null);
   
     if (target) {
       await serialStore.connect(target);
