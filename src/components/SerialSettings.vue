@@ -14,11 +14,14 @@ import {
   AlertCircleIcon, 
   LoaderIcon,
   CpuIcon,
-  ZapIcon
+  ZapIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from "lucide-vue-next";
 
 const serialStore = useSerialStore();
 const isRefreshing = ref(false);
+const isSerialSettingsOpen = ref(false);
 
 onMounted(async () => {
   await serialStore.loadSettings();
@@ -88,6 +91,10 @@ const vioOptions = computed(() => {
   return vioOptionsByMode[serialStore.protocolMode] || vioOptionsByMode.rffe;
 });
 
+const serialSettingsSummary = computed(() => {
+  return `Baud ${serialStore.baudRate}, Parity ${serialStore.parity}, Stop ${serialStore.stopBits}, Data ${serialStore.dataBits}, Flow ${serialStore.flowControl}, Line ${serialStore.lineEnding}`;
+});
+
 async function handleConnect() {
   if (serialStore.isConnected) {
     await serialStore.disconnect();
@@ -116,137 +123,69 @@ const handleRefresh = async () => {
 
 <template>
   <div class="m-6 pb-12 grid gap-6 grid-cols-[400px_1fr] items-start">
-    <!-- 통신 모드 선택 (공통) -->
-    <Card :class="['border-primary/20 transition-colors h-fit', serialStore.isConnected ? 'bg-muted/50 opacity-70' : 'bg-primary/2']">
-      <CardHeader class="pb-3">
-        <div class="flex items-center justify-between">
-          <div class="space-y-1">
-            <CardTitle class="flex items-center gap-2 text-primary">
-              <ZapIcon class="h-5 w-5" />
-              통신 인터페이스 모드
-            </CardTitle>
-            <CardDescription>사용할 하드웨어 인터페이스 타입을 선택하세요</CardDescription>
-          </div>
-          <Badge variant="outline" class="bg-primary/10 text-primary border-primary/20 uppercase tracking-widest text-[10px] font-bold">
-            {{ serialStore.deviceType }} mode
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div class="grid gap-4">
-          <Select
-            v-model="serialStore.deviceType"
-            :disabled="serialStore.isConnected"
-            placeholder="인터페이스 모드 선택"
-          >
-            <SelectItem
-              v-for="type in deviceTypes"
-              :key="type.value"
-              :value="type.value"
-            >
-              <div class="flex flex-col py-0.5">
-                <span class="font-bold">{{ type.label }}</span>
-                <span class="text-[10px] text-muted-foreground">{{ type.description }}</span>
-              </div>
-            </SelectItem>
-          </Select>
-        </div>
-      </CardContent>
-    </Card>
-
-    <div class="space-y-6 col-start-2">
-    <!-- [1] Standard Serial Port 전용 화면 -->
-    <template v-if="serialStore.deviceType === 'serialport'">
-      <!-- 장치 선택 섹션 -->
-      <Card :class="['transition-colors', serialStore.isConnected ? 'bg-muted/50 opacity-80' : '']">
-        <CardHeader>
-          <CardTitle class="flex items-center gap-2">
-            <UsbIcon class="h-5 w-5 text-primary" />
-            장치 선택
-          </CardTitle>
-          <CardDescription>연결 가능한 시리얼 장치 목록을 확인하고 선택하세요</CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-4">
-          <div v-if="serialStore.connectedDevices.length === 0" class="flex flex-col items-center justify-center p-8 border border-dashed rounded-lg text-muted-foreground italic">
-            {{ isRefreshing ? "검색중..." : "검색된 장치가 없습니다." }}
-            <Button variant="link" @click="handleRefresh" class="mt-2 text-primary" :disabled="isRefreshing">
-              <LoaderIcon v-if="isRefreshing" class="mr-2 h-4 w-4 animate-spin" />
-              <RefreshCwIcon v-else class="mr-2 h-4 w-4" />
-              {{ isRefreshing ? "검색중..." : "다시 검색" }}
-            </Button>
-          </div>
-          <div v-else class="grid gap-2">
-            <div
-              v-for="device in serialStore.connectedDevices"
-              :key="device"
-              @click="serialStore.selectedDevice = device"
-              :class="[
-                'flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer hover:bg-muted/50',
-                serialStore.selectedDevice === device ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border'
-              ]"
-            >
-              <div class="flex items-center gap-3">
-                <div :class="['p-2 rounded-full', serialStore.selectedDevice === device ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground']">
-                  <UsbIcon class="h-4 w-4" />
-                </div>
-                <div>
-                  <div class="font-medium">{{ device }}</div>
-                  <div class="text-xs text-muted-foreground">Serial Port Device</div>
-                </div>
-              </div>
-              <Badge
-                v-if="serialStore.isConnected && serialStore.selectedDevice === device"
-                variant="success"
-                class="ml-auto"
-              >
-                연결됨
-              </Badge>
+    <div class="space-y-6">
+      <!-- 통신 모드 선택 (공통) -->
+      <Card :class="['border-primary/20 transition-colors h-fit', serialStore.isConnected ? 'bg-muted/50 opacity-70' : 'bg-primary/2']">
+        <CardHeader class="pb-3">
+          <div class="flex items-center justify-between">
+            <div class="space-y-1">
+              <CardTitle class="flex items-center gap-2 text-primary">
+                <ZapIcon class="h-5 w-5" />
+                통신 인터페이스 모드
+              </CardTitle>
+              <CardDescription>사용할 하드웨어 인터페이스 타입을 선택하세요</CardDescription>
             </div>
+            <Badge variant="outline" class="bg-primary/10 text-primary border-primary/20 uppercase tracking-widest text-[10px] font-bold">
+              {{ serialStore.deviceType }} mode
+            </Badge>
           </div>
-
-          <div class="flex items-center gap-2">
-            <Button
-              :variant="serialStore.isConnected ? 'destructive' : 'default'"
-              @click="handleConnect"
-              :disabled="!serialStore.selectedDevice || serialStore.isConnecting"
-              class="min-w-[120px]"
+        </CardHeader>
+        <CardContent>
+          <div class="grid gap-4">
+            <Select
+              v-model="serialStore.deviceType"
+              :disabled="serialStore.isConnected"
+              placeholder="인터페이스 모드 선택"
             >
-              <LoaderIcon
-                v-if="serialStore.isConnecting"
-                class="mr-2 h-4 w-4 animate-spin"
-              />
-              <PowerIcon
-                v-else
-                class="mr-2 h-4 w-4"
-              />
-              {{
-                serialStore.isConnecting
-                  ? "연결 중..."
-                  : serialStore.isConnected
-                  ? "연결 해제"
-                  : "장치 연결"
-              }}
-            </Button>
-            <Button
-              variant="outline"
-              @click="handleRefresh"
-              :disabled="serialStore.isConnecting || isRefreshing"
-            >
-              <LoaderIcon v-if="isRefreshing" class="mr-2 h-4 w-4 animate-spin" />
-              <RefreshCwIcon v-else class="mr-2 h-4 w-4" />
-              {{ isRefreshing ? "검색중..." : "목록 새로고침" }}
-            </Button>
+              <SelectItem
+                v-for="type in deviceTypes"
+                :key="type.value"
+                :value="type.value"
+              >
+                <div class="flex flex-col py-0.5">
+                  <span class="font-bold">{{ type.label }}</span>
+                  <span class="text-[10px] text-muted-foreground">{{ type.description }}</span>
+                </div>
+              </SelectItem>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
       <!-- 시리얼 통신 설정 섹션 -->
-      <Card :class="['transition-colors', serialStore.isConnected ? 'bg-muted/50 opacity-80' : '']">
+      <Card v-if="serialStore.deviceType === 'serialport'" :class="['transition-colors', serialStore.isConnected ? 'bg-muted/50 opacity-80' : '']">
         <CardHeader>
-          <CardTitle>시리얼 통신 설정</CardTitle>
-          <CardDescription>Baud Rate, Parity, Stop Bit 등 세부 통신 파라미터 설정</CardDescription>
+          <div class="flex items-start justify-between gap-3">
+            <div class="space-y-1">
+              <CardTitle>시리얼 통신 설정</CardTitle>
+              <CardDescription v-if="isSerialSettingsOpen">Baud Rate, Parity, Stop Bit 등 세부 통신 파라미터 설정</CardDescription>
+              <CardDescription v-else class="text-xs text-muted-foreground">
+                {{ serialSettingsSummary }}
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              class="h-7 px-2 text-xs gap-1 bg-primary/10  hover:bg-primary/15"
+              @click="isSerialSettingsOpen = !isSerialSettingsOpen"
+            >
+              {{ isSerialSettingsOpen ? "접기" : "펼치기" }}
+              <ChevronUpIcon v-if="isSerialSettingsOpen" class="h-3 w-3" />
+              <ChevronDownIcon v-else class="h-3 w-3" />
+            </Button>
+          </div>
         </CardHeader>
-          <CardContent class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <CardContent v-if="isSerialSettingsOpen" class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div class="space-y-2">
             <label class="text-sm font-medium">Baud Rate</label>
             <Select
@@ -347,6 +286,93 @@ const handleRefresh = async () => {
                 {{ opt.label }}
               </SelectItem>
             </Select>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+
+    <div class="space-y-6 col-start-2">
+    <!-- [1] Standard Serial Port 전용 화면 -->
+    <template v-if="serialStore.deviceType === 'serialport'">
+      <!-- 장치 선택 섹션 -->
+      <Card :class="['transition-colors', serialStore.isConnected ? 'bg-muted/50 opacity-80' : '']">
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2">
+            <UsbIcon class="h-5 w-5 text-primary" />
+            장치 선택
+          </CardTitle>
+          <CardDescription>연결 가능한 시리얼 장치 목록을 확인하고 선택하세요</CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <div v-if="serialStore.connectedDevices.length === 0" class="flex flex-col items-center justify-center p-8 border border-dashed rounded-lg text-muted-foreground italic">
+            {{ isRefreshing ? "검색중..." : "검색된 장치가 없습니다." }}
+            <Button variant="link" @click="handleRefresh" class="mt-2 text-primary" :disabled="isRefreshing">
+              <LoaderIcon v-if="isRefreshing" class="mr-2 h-4 w-4 animate-spin" />
+              <RefreshCwIcon v-else class="mr-2 h-4 w-4" />
+              {{ isRefreshing ? "검색중..." : "다시 검색" }}
+            </Button>
+          </div>
+          <div v-else class="grid gap-2">
+            <div
+              v-for="device in serialStore.connectedDevices"
+              :key="device"
+              @click="serialStore.selectedDevice = device"
+              :class="[
+                'flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer hover:bg-muted/50',
+                serialStore.selectedDevice === device ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border'
+              ]"
+            >
+              <div class="flex items-center gap-3">
+                <div :class="['p-2 rounded-full', serialStore.selectedDevice === device ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground']">
+                  <UsbIcon class="h-4 w-4" />
+                </div>
+                <div>
+                  <div class="font-medium">{{ device }}</div>
+                  <div class="text-xs text-muted-foreground">Serial Port Device</div>
+                </div>
+              </div>
+              <Badge
+                v-if="serialStore.isConnected && serialStore.selectedDevice === device"
+                variant="success"
+                class="ml-auto"
+              >
+                연결됨
+              </Badge>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <Button
+              :variant="serialStore.isConnected ? 'destructive' : 'default'"
+              @click="handleConnect"
+              :disabled="!serialStore.selectedDevice || serialStore.isConnecting"
+              class="min-w-[120px]"
+            >
+              <LoaderIcon
+                v-if="serialStore.isConnecting"
+                class="mr-2 h-4 w-4 animate-spin"
+              />
+              <PowerIcon
+                v-else
+                class="mr-2 h-4 w-4"
+              />
+              {{
+                serialStore.isConnecting
+                  ? "연결 중..."
+                  : serialStore.isConnected
+                  ? "연결 해제"
+                  : "장치 연결"
+              }}
+            </Button>
+            <Button
+              variant="outline"
+              @click="handleRefresh"
+              :disabled="serialStore.isConnecting || isRefreshing"
+            >
+              <LoaderIcon v-if="isRefreshing" class="mr-2 h-4 w-4 animate-spin" />
+              <RefreshCwIcon v-else class="mr-2 h-4 w-4" />
+              {{ isRefreshing ? "검색중..." : "목록 새로고침" }}
+            </Button>
           </div>
         </CardContent>
       </Card>
