@@ -106,9 +106,9 @@ const handleRefresh = async () => {
 </script>
 
 <template>
-  <div class="space-y-6 m-6 pb-12">
+  <div class="m-6 pb-12 grid gap-6 grid-cols-[400px_1fr] items-start">
     <!-- 통신 모드 선택 (공통) -->
-    <Card :class="['border-primary/20 transition-colors', serialStore.isConnected ? 'bg-muted/50 opacity-70' : 'bg-primary/2']">
+    <Card :class="['border-primary/20 transition-colors h-fit', serialStore.isConnected ? 'bg-muted/50 opacity-70' : 'bg-primary/2']">
       <CardHeader class="pb-3">
         <div class="flex items-center justify-between">
           <div class="space-y-1">
@@ -145,6 +145,7 @@ const handleRefresh = async () => {
       </CardContent>
     </Card>
 
+    <div class="space-y-6 col-start-2">
     <!-- [1] Standard Serial Port 전용 화면 -->
     <template v-if="serialStore.deviceType === 'serialport'">
       <!-- 장치 선택 섹션 -->
@@ -703,6 +704,7 @@ const handleRefresh = async () => {
         <span class="text-sm font-medium">연결 실패</span>
       </div>
       <p class="mt-1 text-sm text-destructive/80">{{ serialStore.connectionError }}</p>
+    </div>
     </div>
   </div>
 </template>
