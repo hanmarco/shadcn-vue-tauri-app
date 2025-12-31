@@ -9,7 +9,9 @@ export const useControlStore = defineStore("control", () => {
   const serialStore = useSerialStore();
 
   // IC 제어 파라미터
+  const registerAddress = ref(0);
   const registerValue = ref(0);
+  const spiWriteCommand = ref(0);
 
   // Persistence logic
   const CONTROL_KEY = "ic-controls";
@@ -20,7 +22,9 @@ export const useControlStore = defineStore("control", () => {
     try {
       const saved = await store.get(CONTROL_KEY);
       if (saved) {
+        registerAddress.value = saved.registerAddress ?? 0;
         registerValue.value = saved.registerValue ?? 0;
+        spiWriteCommand.value = saved.spiWriteCommand ?? 0;
       }
     } catch (error) {
       console.error("Failed to load control settings:", error);
@@ -33,7 +37,9 @@ export const useControlStore = defineStore("control", () => {
     if (isLoading.value) return;
     try {
       await store.set(CONTROL_KEY, {
+        registerAddress: registerAddress.value,
         registerValue: registerValue.value,
+        spiWriteCommand: spiWriteCommand.value,
       });
       await store.save();
     } catch (error) {
@@ -42,7 +48,7 @@ export const useControlStore = defineStore("control", () => {
   }
 
   // Watch for changes and save
-  watch([registerValue], () => {
+  watch([registerAddress, registerValue, spiWriteCommand], () => {
     saveControlSettings();
   });
 
@@ -134,7 +140,7 @@ export const useControlStore = defineStore("control", () => {
     let cmd = "";
     if (serialStore.protocolMode === "rffe") {
       const sa = Math.max(0, Math.min(15, serialStore.rffeSlaveAddress));
-      const addr = Math.max(0, Math.min(31, serialStore.rffeRegisterAddress));
+      const addr = Math.max(0, Math.min(31, registerAddress.value));
       const data = formatHex(value & 0xff, 2);
       cmd = `rw ${sa} ${formatHex(addr, 2)} ${data}`;
     } else if (serialStore.protocolMode === "spi") {
@@ -143,8 +149,14 @@ export const useControlStore = defineStore("control", () => {
       const data = formatHex(value & maxMask, widthBytes * 2);
       const cmdWidth = Math.max(2, Math.ceil(serialStore.spiCmdWidth / 4));
       const addrWidth = Math.max(2, Math.ceil(serialStore.spiAddrWidth / 4));
-      const cmdValue = formatHex(serialStore.spiCommand, cmdWidth);
-      const addrValue = formatHex(serialStore.spiAddress, addrWidth);
+      const addrMask = serialStore.spiAddrWidth >= 1 && serialStore.spiAddrWidth <= 16
+        ? (1 << serialStore.spiAddrWidth) - 1
+        : 0xffff;
+      const addrValue = formatHex(registerAddress.value & addrMask, addrWidth);
+      const cmdMask = serialStore.spiCmdWidth >= 1 && serialStore.spiCmdWidth <= 16
+        ? (1 << serialStore.spiCmdWidth) - 1
+        : 0xffff;
+      const cmdValue = formatHex(spiWriteCommand.value & cmdMask, cmdWidth);
       cmd = `s_write 1 ${cmdValue} ${addrValue} ${data}`;
     } else {
       const byteCount = Math.max(1, Math.min(4, serialStore.i3cByteCount));
@@ -164,7 +176,9 @@ export const useControlStore = defineStore("control", () => {
   }
 
   return {
+    registerAddress,
     registerValue,
+    spiWriteCommand,
     sendingStates,
     setVoltage,
     setFrequency,

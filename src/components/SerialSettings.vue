@@ -497,26 +497,6 @@ const handleRefresh = async () => {
                 />
               </div>
             </div>
-            <div class="grid gap-4 md:grid-cols-2">
-              <div class="space-y-2">
-                <label class="text-sm font-medium">Write CMD</label>
-                <input
-                  v-model.number="serialStore.spiCommand"
-                  type="number"
-                  min="0"
-                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div class="space-y-2">
-                <label class="text-sm font-medium">Write ADDR</label>
-                <input
-                  v-model.number="serialStore.spiAddress"
-                  type="number"
-                  min="0"
-                  class="w-full rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </div>
           </div>
 
           <!-- I3C Settings -->

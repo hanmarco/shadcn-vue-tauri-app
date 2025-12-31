@@ -213,9 +213,35 @@ const clockRange = computed(() => {
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-xs font-medium text-muted-foreground">HEX 값</span>
-            <Badge variant="secondary" class="font-mono">0x{{ controlStore.registerValue.toString(16).toUpperCase().padStart(8, '0') }}</Badge>
+            <div class="flex items-center gap-2" v-if="false">
+              <Badge v-if="serialStore.protocolMode === 'spi'" variant="secondary" class="font-mono">
+                CMD 0x{{ controlStore.spiWriteCommand.toString(16).toUpperCase().padStart(4, '0') }}
+              </Badge>
+              <Badge variant="secondary" class="font-mono">ADDR 0x{{ controlStore.registerAddress.toString(16).toUpperCase().padStart(4, '0') }}</Badge>
+              <Badge variant="secondary" class="font-mono">DATA 0x{{ controlStore.registerValue.toString(16).toUpperCase().padStart(8, '0') }}</Badge>
+            </div>
           </div>
           <div class="flex gap-2">
+            <div v-if="serialStore.protocolMode === 'spi'" class="flex items-center gap-2">
+              <span class="text-xs text-muted-foreground">CMD</span>
+              <input
+                v-model.number="controlStore.spiWriteCommand"
+                type="number"
+                min="0"
+                max="65535"
+                class="w-24 rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-muted-foreground">ADDR</span>
+              <input
+                v-model.number="controlStore.registerAddress"
+                type="number"
+                min="0"
+                max="65535"
+                class="w-24 rounded-md border border-input bg-background/50 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
             <input
               v-model.number="controlStore.registerValue"
               type="number"

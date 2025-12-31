@@ -52,8 +52,6 @@ export const useSerialStore = defineStore("serial", () => {
   const spiWriteWidth = ref(1);
   const spiReadWidth = ref(1);
   const spiWaitCycles = ref(0);
-  const spiCommand = ref(0);
-  const spiAddress = ref(0);
 
   const i3cRateIndex = ref(0);
   const i2cRateIndex = ref(0);
@@ -109,8 +107,6 @@ export const useSerialStore = defineStore("serial", () => {
         spiWriteWidth.value = saved.spiWriteWidth ?? 1;
         spiReadWidth.value = saved.spiReadWidth ?? 1;
         spiWaitCycles.value = saved.spiWaitCycles ?? 0;
-        spiCommand.value = saved.spiCommand ?? 0;
-        spiAddress.value = saved.spiAddress ?? 0;
         i3cRateIndex.value = saved.i3cRateIndex ?? 0;
         i2cRateIndex.value = saved.i2cRateIndex ?? 0;
         i3cPullup.value = saved.i3cPullup ?? 0;
@@ -174,8 +170,6 @@ export const useSerialStore = defineStore("serial", () => {
         spiWriteWidth: spiWriteWidth.value,
         spiReadWidth: spiReadWidth.value,
         spiWaitCycles: spiWaitCycles.value,
-        spiCommand: spiCommand.value,
-        spiAddress: spiAddress.value,
         i3cRateIndex: i3cRateIndex.value,
         i2cRateIndex: i2cRateIndex.value,
         i3cPullup: i3cPullup.value,
@@ -198,7 +192,7 @@ export const useSerialStore = defineStore("serial", () => {
     ftdiChannel, ftdiMode, ft260Mode, ft260I2cSpeed,
     protocolMode, vioSetting, rffeClockKHz, rffeHsdr, rffeSlaveAddress, rffeRegisterAddress,
     spiClockKHz, spiSelect, spiSelPol, spiMode, spiCmdWidth, spiAddrWidth,
-    spiWriteWidth, spiReadWidth, spiWaitCycles, spiCommand, spiAddress,
+    spiWriteWidth, spiReadWidth, spiWaitCycles,
     i3cRateIndex, i2cRateIndex, i3cPullup, i3cErrMsg, i3cIndex, i3cByteCount, i3cCmb,
     isSimulationMode, txEnabled, rxEnabled, selectedDevice, lastConnectedDevice
   ], () => {
@@ -493,8 +487,6 @@ export const useSerialStore = defineStore("serial", () => {
     spiWriteWidth,
     spiReadWidth,
     spiWaitCycles,
-    spiCommand,
-    spiAddress,
     i3cRateIndex,
     i2cRateIndex,
     i3cPullup,
