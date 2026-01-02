@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useSerialStore } from "@/stores/serial";
 import { 
   UsbIcon, 
@@ -15,6 +16,7 @@ import {
   LoaderIcon,
   CpuIcon,
   ZapIcon,
+  InfoIcon,
   ChevronDownIcon,
   ChevronUpIcon
 } from "lucide-vue-next";
@@ -190,9 +192,22 @@ const handleRefresh = async () => {
             </Button>
           </div>
         </CardHeader>
+        <TooltipProvider>
           <CardContent v-if="isSerialSettingsOpen" class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div class="space-y-2">
-            <label class="text-sm font-medium">Baud Rate</label>
+            <label class="text-sm font-medium flex items-center gap-1">
+              Baud Rate
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="inline-flex items-center text-muted-foreground cursor-help">
+                    <InfoIcon class="h-3.5 w-3.5" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                  통신 속도(bps). 상대 장치와 동일해야 합니다.
+                </TooltipContent>
+              </Tooltip>
+            </label>
             <Select
               v-model="serialStore.baudRate"
               :disabled="serialStore.isConnected"
@@ -209,7 +224,19 @@ const handleRefresh = async () => {
           </div>
 
           <div class="space-y-2">
-            <label class="text-sm font-medium">Parity</label>
+            <label class="text-sm font-medium flex items-center gap-1">
+              Parity
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="inline-flex items-center text-muted-foreground cursor-help">
+                    <InfoIcon class="h-3.5 w-3.5" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                  오류 검출 비트 설정(없음/짝수/홀수).
+                </TooltipContent>
+              </Tooltip>
+            </label>
             <Select
               v-model="serialStore.parity"
               :disabled="serialStore.isConnected"
@@ -226,7 +253,19 @@ const handleRefresh = async () => {
           </div>
 
           <div class="space-y-2">
-            <label class="text-sm font-medium">Stop Bits</label>
+            <label class="text-sm font-medium flex items-center gap-1">
+              Stop Bits
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="inline-flex items-center text-muted-foreground cursor-help">
+                    <InfoIcon class="h-3.5 w-3.5" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                  프레임 종료 비트 수.
+                </TooltipContent>
+              </Tooltip>
+            </label>
             <Select
               v-model="serialStore.stopBits"
               :disabled="serialStore.isConnected"
@@ -243,7 +282,19 @@ const handleRefresh = async () => {
           </div>
 
           <div class="space-y-2">
-            <label class="text-sm font-medium">Data Bits</label>
+            <label class="text-sm font-medium flex items-center gap-1">
+              Data Bits
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="inline-flex items-center text-muted-foreground cursor-help">
+                    <InfoIcon class="h-3.5 w-3.5" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                  프레임당 데이터 비트 수.
+                </TooltipContent>
+              </Tooltip>
+            </label>
             <Select
               v-model="serialStore.dataBits"
               :disabled="serialStore.isConnected"
@@ -260,7 +311,19 @@ const handleRefresh = async () => {
           </div>
 
           <div class="space-y-2">
-            <label class="text-sm font-medium">Flow Control</label>
+            <label class="text-sm font-medium flex items-center gap-1">
+              Flow Control
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="inline-flex items-center text-muted-foreground cursor-help">
+                    <InfoIcon class="h-3.5 w-3.5" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                  전송 흐름 제어 방식(RTS/CTS 또는 XON/XOFF).
+                </TooltipContent>
+              </Tooltip>
+            </label>
             <Select
               v-model="serialStore.flowControl"
               :disabled="serialStore.isConnected"
@@ -277,7 +340,19 @@ const handleRefresh = async () => {
           </div>
 
           <div class="space-y-2">
-            <label class="text-sm font-medium">Line Ending</label>
+            <label class="text-sm font-medium flex items-center gap-1">
+              Line Ending
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="inline-flex items-center text-muted-foreground cursor-help">
+                    <InfoIcon class="h-3.5 w-3.5" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                  전송 시 데이터 끝에 추가할 개행 문자.
+                </TooltipContent>
+              </Tooltip>
+            </label>
             <Select
               v-model="serialStore.lineEnding"
               :disabled="serialStore.isConnected"
@@ -293,6 +368,7 @@ const handleRefresh = async () => {
             </Select>
           </div>
         </CardContent>
+        </TooltipProvider>
       </Card>
     </div>
 
@@ -388,10 +464,23 @@ const handleRefresh = async () => {
           <CardTitle>SC4415 통신 설정</CardTitle>
           <CardDescription>모드/VIO/클럭 및 프로토콜별 파라미터 설정</CardDescription>
         </CardHeader>
+        <TooltipProvider>
         <CardContent class="space-y-6">
           <div class="grid gap-4 md:grid-cols-2">
             <div class="space-y-2">
-              <label class="text-sm font-medium">Mode</label>
+              <label class="text-sm font-medium flex items-center gap-1">
+                Mode
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="inline-flex items-center text-muted-foreground cursor-help">
+                      <InfoIcon class="h-3.5 w-3.5" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                    프로토콜 모드 선택(RFFE/SPI/I3C).
+                  </TooltipContent>
+                </Tooltip>
+              </label>
               <Select v-model="serialStore.protocolMode">
                 <SelectItem v-for="mode in protocolModes" :key="mode.value" :value="mode.value">
                   {{ mode.label }}
@@ -400,7 +489,19 @@ const handleRefresh = async () => {
             </div>
 
             <div class="space-y-2">
-              <label class="text-sm font-medium">VIO</label>
+              <label class="text-sm font-medium flex items-center gap-1">
+                VIO
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="inline-flex items-center text-muted-foreground cursor-help">
+                      <InfoIcon class="h-3.5 w-3.5" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                    I/O 전압 레벨 선택.
+                  </TooltipContent>
+                </Tooltip>
+              </label>
               <Select v-model="serialStore.vioSetting">
                 <SelectItem v-for="opt in vioOptions" :key="opt.value" :value="opt.value">
                   {{ opt.label }}
@@ -414,7 +515,19 @@ const handleRefresh = async () => {
           <!-- RFFE Settings -->
           <div v-if="serialStore.protocolMode === 'rffe'" class="grid gap-4 md:grid-cols-2">
             <div class="space-y-2">
-              <label class="text-sm font-medium">Clock (kHz)</label>
+              <label class="text-sm font-medium flex items-center gap-1">
+                Clock (kHz)
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="inline-flex items-center text-muted-foreground cursor-help">
+                      <InfoIcon class="h-3.5 w-3.5" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                    RFFE 클럭 주파수.
+                  </TooltipContent>
+                </Tooltip>
+              </label>
               <input
                 v-model.number="serialStore.rffeClockKHz"
                 type="number"
@@ -424,14 +537,38 @@ const handleRefresh = async () => {
               />
             </div>
             <div class="space-y-2">
-              <label class="text-sm font-medium">HSDR</label>
+              <label class="text-sm font-medium flex items-center gap-1">
+                HSDR
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="inline-flex items-center text-muted-foreground cursor-help">
+                      <InfoIcon class="h-3.5 w-3.5" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                    고속 데이터 전송(HSDR) 사용.
+                  </TooltipContent>
+                </Tooltip>
+              </label>
               <div class="flex items-center gap-3">
                 <Switch v-model="serialStore.rffeHsdr" />
                 <span class="text-xs text-muted-foreground">{{ serialStore.rffeHsdr ? "Enable" : "Disable" }}</span>
               </div>
             </div>
             <div class="space-y-2">
-              <label class="text-sm font-medium">Slave Address (SA)</label>
+              <label class="text-sm font-medium flex items-center gap-1">
+                Slave Address (SA)
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="inline-flex items-center text-muted-foreground cursor-help">
+                      <InfoIcon class="h-3.5 w-3.5" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                    RFFE 슬레이브 주소.
+                  </TooltipContent>
+                </Tooltip>
+              </label>
               <input
                 v-model.number="serialStore.rffeSlaveAddress"
                 type="number"
@@ -441,7 +578,19 @@ const handleRefresh = async () => {
               />
             </div>
             <div class="space-y-2">
-              <label class="text-sm font-medium">Register Address</label>
+              <label class="text-sm font-medium flex items-center gap-1">
+                Register Address
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="inline-flex items-center text-muted-foreground cursor-help">
+                      <InfoIcon class="h-3.5 w-3.5" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                    접근할 레지스터 주소.
+                  </TooltipContent>
+                </Tooltip>
+              </label>
               <input
                 v-model.number="serialStore.rffeRegisterAddress"
                 type="number"
@@ -456,7 +605,19 @@ const handleRefresh = async () => {
           <div v-else-if="serialStore.protocolMode === 'spi'" class="space-y-4">
             <div class="grid gap-4 md:grid-cols-2">
               <div class="space-y-2">
-                <label class="text-sm font-medium">Clock (kHz)</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  Clock (kHz)
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      SPI 클럭 주파수.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <input
                   v-model.number="serialStore.spiClockKHz"
                   type="number"
@@ -466,7 +627,19 @@ const handleRefresh = async () => {
                 />
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium">SPI Mode</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  SPI Mode
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      CPOL/CPHA 조합.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <Select v-model="serialStore.spiMode">
                   <SelectItem v-for="mode in [0,1,2,3]" :key="mode" :value="mode">
                     Mode {{ mode }}
@@ -476,7 +649,19 @@ const handleRefresh = async () => {
             </div>
             <div class="grid gap-4 md:grid-cols-4">
               <div class="space-y-2">
-                <label class="text-sm font-medium">Select</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  Select
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      사용할 CS 라인.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <Select v-model="serialStore.spiSelect">
                   <SelectItem v-for="sel in [1,2]" :key="sel" :value="sel">
                     {{ sel }}
@@ -484,7 +669,19 @@ const handleRefresh = async () => {
                 </Select>
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium">Select Polarity</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  Select Polarity
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      CS 활성 극성(0: Active Low, 1: Active High).
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <Select v-model="serialStore.spiSelPol">
                   <SelectItem v-for="pol in [0,1]" :key="pol" :value="pol">
                     {{ pol }}
@@ -492,7 +689,19 @@ const handleRefresh = async () => {
                 </Select>
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium">CMD Width (bits)</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  CMD Width (bits)
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      명령어 비트 길이.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <input
                   v-model.number="serialStore.spiCmdWidth"
                   type="number"
@@ -502,7 +711,19 @@ const handleRefresh = async () => {
                 />
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium">ADDR Width (bits)</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  ADDR Width (bits)
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      주소 비트 길이.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <input
                   v-model.number="serialStore.spiAddrWidth"
                   type="number"
@@ -514,7 +735,19 @@ const handleRefresh = async () => {
             </div>
             <div class="grid gap-4 md:grid-cols-3">
               <div class="space-y-2">
-                <label class="text-sm font-medium">Write Width</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  Write Width
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      쓰기 데이터 바이트 수.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <Select v-model="serialStore.spiWriteWidth">
                   <SelectItem v-for="width in [0,1,2,3]" :key="width" :value="width">
                     {{ width === 0 ? "None" : width === 1 ? "1 byte" : width === 2 ? "2 bytes" : "4 bytes" }}
@@ -522,7 +755,19 @@ const handleRefresh = async () => {
                 </Select>
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium">Read Width</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  Read Width
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      읽기 데이터 바이트 수.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <Select v-model="serialStore.spiReadWidth">
                   <SelectItem v-for="width in [0,1,2,3]" :key="width" :value="width">
                     {{ width === 0 ? "None" : width === 1 ? "1 byte" : width === 2 ? "2 bytes" : "4 bytes" }}
@@ -530,7 +775,19 @@ const handleRefresh = async () => {
                 </Select>
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium">Wait Cycles</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  Wait Cycles
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      명령/주소 후 대기 사이클.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <input
                   v-model.number="serialStore.spiWaitCycles"
                   type="number"
@@ -546,7 +803,19 @@ const handleRefresh = async () => {
           <div v-else class="space-y-4">
             <div class="grid gap-4 md:grid-cols-2">
               <div class="space-y-2">
-                <label class="text-sm font-medium">I3C Rate Index</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  I3C Rate Index
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      I3C 전송 속도 인덱스.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <input
                   v-model.number="serialStore.i3cRateIndex"
                   type="number"
@@ -555,7 +824,19 @@ const handleRefresh = async () => {
                 />
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium">I2C Rate Index</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  I2C Rate Index
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      I2C 전송 속도 인덱스(legacy).
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <input
                   v-model.number="serialStore.i2cRateIndex"
                   type="number"
@@ -566,7 +847,19 @@ const handleRefresh = async () => {
             </div>
             <div class="grid gap-4 md:grid-cols-2">
               <div class="space-y-2">
-                <label class="text-sm font-medium">Pull-up (Ω)</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  Pull-up (Ω)
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      버스 풀업 저항 값.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <input
                   v-model.number="serialStore.i3cPullup"
                   type="number"
@@ -576,7 +869,19 @@ const handleRefresh = async () => {
                 />
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium">Error Message</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  Error Message
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      에러 메시지 출력 여부.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <div class="flex items-center gap-3">
                   <Switch v-model="serialStore.i3cErrMsg" />
                   <span class="text-xs text-muted-foreground">{{ serialStore.i3cErrMsg ? "Enable" : "Disable" }}</span>
@@ -585,7 +890,19 @@ const handleRefresh = async () => {
             </div>
             <div class="grid gap-4 md:grid-cols-3">
               <div class="space-y-2">
-                <label class="text-sm font-medium">SDR Index</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  SDR Index
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      SDR 전송 속도 인덱스.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <input
                   v-model.number="serialStore.i3cIndex"
                   type="number"
@@ -594,7 +911,19 @@ const handleRefresh = async () => {
                 />
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium">CMB</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  CMB
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      Common Mode Buffer 사용 여부.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <Select v-model="serialStore.i3cCmb">
                   <SelectItem v-for="cmb in [0,1]" :key="cmb" :value="cmb">
                     {{ cmb }}
@@ -602,7 +931,19 @@ const handleRefresh = async () => {
                 </Select>
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium">Byte Count</label>
+                <label class="text-sm font-medium flex items-center gap-1">
+                  Byte Count
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="inline-flex items-center text-muted-foreground cursor-help">
+                        <InfoIcon class="h-3.5 w-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" :side-offset="6" class="max-w-[240px] text-xs">
+                      전송할 바이트 수.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
                 <input
                   v-model.number="serialStore.i3cByteCount"
                   type="number"
@@ -614,6 +955,7 @@ const handleRefresh = async () => {
             </div>
           </div>
         </CardContent>
+        </TooltipProvider>
       </Card>
     </template>
 
