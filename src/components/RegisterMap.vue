@@ -398,121 +398,123 @@ function getFieldValue(regValue, field) {
                     <CardContent class="p-0 flex-1 overflow-hidden">
                         <div class="h-full overflow-auto">
                             <div class="p-6 space-y-6">
-                                <div
-                                    class="rounded-lg border bg-card/50 p-4 space-y-3"
-                                >
+                                <div class="grid gap-6 lg:grid-cols-2">
                                     <div
-                                        class="text-xs font-semibold text-muted-foreground"
+                                        class="rounded-lg border bg-card/50 p-4 space-y-3"
                                     >
-                                        Register Definition
-                                    </div>
-                                    <div
-                                        class="grid grid-cols-12 gap-3 items-center"
-                                    >
-                                        <template v-if="isEditEnabled">
-                                            <label
-                                                class="col-span-3 text-xs text-muted-foreground"
-                                                >Name</label
-                                            >
-                                            <input
-                                                class="col-span-9 rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                                                :value="detailRegister.name"
-                                                :disabled="!isEditEnabled"
-                                                @input="
-                                                    updateRegisterName(
-                                                        detailRegister.address,
-                                                        $event,
-                                                    )
-                                                "
-                                            />
-                                            <label
-                                                class="col-span-3 text-xs text-muted-foreground"
-                                                >Description</label
-                                            >
-                                            <input
-                                                class="col-span-9 rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                                                :value="
-                                                    detailRegister.description
-                                                "
-                                                :disabled="!isEditEnabled"
-                                                @input="
-                                                    updateRegisterDescription(
-                                                        detailRegister.address,
-                                                        $event,
-                                                    )
-                                                "
-                                            />
-                                        </template>
-                                        <label
-                                            class="col-span-3 text-xs text-muted-foreground"
-                                            >Value</label
-                                        >
-                                        <input
-                                            class="rounded border bg-background px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
-                                            :class="
-                                                isEditEnabled
-                                                    ? 'col-span-5'
-                                                    : 'col-span-9'
-                                            "
-                                            :value="`0x${detailRegister.value.toString(16).toUpperCase()}`"
-                                            @input="
-                                                updateRegisterValue(
-                                                    detailRegister.address,
-                                                    $event,
-                                                )
-                                            "
-                                        />
                                         <div
-                                            v-if="isEditEnabled"
-                                            class="col-span-4 flex items-center gap-2"
+                                            class="text-xs font-semibold text-muted-foreground"
                                         >
-                                            <Switch
-                                                :model-value="
-                                                    detailRegister.readOnly
+                                            Register Definition
+                                        </div>
+                                        <div
+                                            class="grid grid-cols-12 gap-3 items-center"
+                                        >
+                                            <template v-if="isEditEnabled">
+                                                <label
+                                                    class="col-span-3 text-xs text-muted-foreground"
+                                                    >Name</label
+                                                >
+                                                <input
+                                                    class="col-span-9 rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                                                    :value="detailRegister.name"
+                                                    :disabled="!isEditEnabled"
+                                                    @input="
+                                                        updateRegisterName(
+                                                            detailRegister.address,
+                                                            $event,
+                                                        )
+                                                    "
+                                                />
+                                                <label
+                                                    class="col-span-3 text-xs text-muted-foreground"
+                                                    >Description</label
+                                                >
+                                                <input
+                                                    class="col-span-9 rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                                                    :value="
+                                                        detailRegister.description
+                                                    "
+                                                    :disabled="!isEditEnabled"
+                                                    @input="
+                                                        updateRegisterDescription(
+                                                            detailRegister.address,
+                                                            $event,
+                                                        )
+                                                    "
+                                                />
+                                            </template>
+                                            <label
+                                                class="col-span-3 text-xs text-muted-foreground"
+                                                >Value</label
+                                            >
+                                            <input
+                                                class="rounded border bg-background px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                                                :class="
+                                                    isEditEnabled
+                                                        ? 'col-span-5'
+                                                        : 'col-span-9'
                                                 "
-                                                :disabled="!isEditEnabled"
-                                                @update:model-value="
-                                                    updateRegisterReadOnly(
+                                                :value="`0x${detailRegister.value.toString(16).toUpperCase()}`"
+                                                @input="
+                                                    updateRegisterValue(
                                                         detailRegister.address,
                                                         $event,
                                                     )
                                                 "
                                             />
-                                            <span
-                                                class="text-xs text-muted-foreground"
-                                                >Read-only</span
+                                            <div
+                                                v-if="isEditEnabled"
+                                                class="col-span-4 flex items-center gap-2"
                                             >
+                                                <Switch
+                                                    :model-value="
+                                                        detailRegister.readOnly
+                                                    "
+                                                    :disabled="!isEditEnabled"
+                                                    @update:model-value="
+                                                        updateRegisterReadOnly(
+                                                            detailRegister.address,
+                                                            $event,
+                                                        )
+                                                    "
+                                                />
+                                                <span
+                                                    class="text-xs text-muted-foreground"
+                                                    >Read-only</span
+                                                >
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- Large Hex Viewer -->
-                                <div
-                                    class="flex flex-col items-center justify-center py-8 rounded-xl bg-muted/30 border border-dashed"
-                                >
+                                    <!-- Large Hex Viewer -->
                                     <div
-                                        class="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mb-1"
+                                        class="flex flex-col items-center justify-center py-8 rounded-xl bg-muted/30 border border-dashed"
                                     >
-                                        Current Value
-                                    </div>
-                                    <div
-                                        class="text-5xl font-mono font-bold tracking-tighter text-primary"
-                                    >
-                                        0x{{
-                                            detailRegister.value
-                                                .toString(16)
-                                                .toUpperCase()
-                                                .padStart(2, "0")
-                                        }}
-                                    </div>
-                                    <div
-                                        class="text-xs font-mono text-muted-foreground mt-2 opacity-50"
-                                    >
-                                        BINARY:
-                                        {{
-                                            detailRegister.value
-                                                .toString(2)
-                                                .padStart(8, "0")
-                                        }}
+                                        <div
+                                            class="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mb-1"
+                                        >
+                                            Current Value
+                                        </div>
+                                        <div
+                                            class="text-5xl font-mono font-bold tracking-tighter text-primary"
+                                        >
+                                            0x{{
+                                                detailRegister.value
+                                                    .toString(16)
+                                                    .toUpperCase()
+                                                    .padStart(2, "0")
+                                            }}
+                                        </div>
+                                        <div
+                                            class="text-xs font-mono text-muted-foreground mt-2 opacity-50"
+                                        >
+                                            BINARY:
+                                            {{
+                                                detailRegister.value
+                                                    .toString(2)
+                                                    .padStart(8, "0")
+                                            }}
+                                        </div>
                                     </div>
                                 </div>
 
