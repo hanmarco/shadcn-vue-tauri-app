@@ -32,6 +32,7 @@ const rowHeight = 36;
 const overscan = 10;
 const detailRegisterAddress = ref(null);
 const detailPending = ref(false);
+const isEditEnabled = ref(false);
 let detailTimer = null;
 
 const filteredRegisters = computed(() => {
@@ -135,6 +136,59 @@ function createRipple(event) {
     });
 }
 
+function updateRegisterName(address, event) {
+    if (!isEditEnabled.value) return;
+    registerStore.updateRegisterMeta(address, { name: event.target.value });
+}
+
+function updateRegisterDescription(address, event) {
+    if (!isEditEnabled.value) return;
+    registerStore.updateRegisterMeta(address, {
+        description: event.target.value,
+    });
+}
+
+function updateRegisterValue(address, event) {
+    registerStore.updateRegisterMeta(address, { value: event.target.value });
+}
+
+function updateRegisterReadOnly(address, value) {
+    if (!isEditEnabled.value) return;
+    registerStore.updateRegisterMeta(address, { readOnly: value });
+}
+
+function updateFieldName(address, index, event) {
+    if (!isEditEnabled.value) return;
+    registerStore.updateFieldMeta(address, index, { name: event.target.value });
+}
+
+function updateFieldBit(address, index, event) {
+    if (!isEditEnabled.value) return;
+    registerStore.updateFieldMeta(address, index, { bit: event.target.value });
+}
+
+function updateFieldSize(address, index, event) {
+    if (!isEditEnabled.value) return;
+    registerStore.updateFieldMeta(address, index, { size: event.target.value });
+}
+
+function updateFieldDescription(address, index, event) {
+    if (!isEditEnabled.value) return;
+    registerStore.updateFieldMeta(address, index, {
+        description: event.target.value,
+    });
+}
+
+function addField(address) {
+    if (!isEditEnabled.value) return;
+    registerStore.addField(address);
+}
+
+function removeField(address, index) {
+    if (!isEditEnabled.value) return;
+    registerStore.removeField(address, index);
+}
+
 function toggleBit(field, currentValue) {
     const newValue = currentValue === 0 ? 1 : 0;
     registerStore.updateBitfield(detailRegisterAddress.value, field, newValue);
@@ -155,21 +209,31 @@ function getFieldValue(regValue, field) {
                     IC 레지스터 직접 제어 및 비트필드 편집
                 </p>
             </div>
-            <div
-                v-if="!serialStore.isConnected"
-                class="flex items-center gap-2 text-destructive text-sm font-medium animate-pulse"
-            >
-                <InfoIcon class="h-4 w-4" />
-                장치 연결 필요 (오프라인)
-            </div>
-            <div
-                v-else-if="
-                    serialStore.selectedDevice === serialStore.VIRTUAL_DEVICE
-                "
-                class="flex items-center gap-2 text-primary text-sm font-medium animate-pulse"
-            >
-                <CpuIcon class="h-4 w-4" />
-                VIRTUAL SIMULATION ACTIVE
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <Switch
+                        :model-value="isEditEnabled"
+                        @update:model-value="isEditEnabled = $event"
+                    />
+                    <span class="text-xs text-muted-foreground">편집 모드</span>
+                </div>
+                <div
+                    v-if="!serialStore.isConnected"
+                    class="flex items-center gap-2 text-destructive text-sm font-medium animate-pulse"
+                >
+                    <InfoIcon class="h-4 w-4" />
+                    장치 연결 필요 (오프라인)
+                </div>
+                <div
+                    v-else-if="
+                        serialStore.selectedDevice ===
+                        serialStore.VIRTUAL_DEVICE
+                    "
+                    class="flex items-center gap-2 text-primary text-sm font-medium animate-pulse"
+                >
+                    <CpuIcon class="h-4 w-4" />
+                    VIRTUAL SIMULATION ACTIVE
+                </div>
             </div>
         </div>
 
@@ -304,6 +368,16 @@ function getFieldValue(regValue, field) {
                                 </Button>
                                 <Button
                                     size="sm"
+                                    variant="outline"
+                                    class="h-8 gap-2"
+                                    v-if="isEditEnabled"
+                                    @click="registerStore.saveRegisterMap()"
+                                >
+                                    <SaveIcon class="h-3 w-3" />
+                                    Save Map
+                                </Button>
+                                <Button
+                                    size="sm"
                                     variant="default"
                                     class="h-8 gap-2"
                                     v-if="!detailRegister.readOnly"
@@ -324,6 +398,93 @@ function getFieldValue(regValue, field) {
                     <CardContent class="p-0 flex-1 overflow-hidden">
                         <div class="h-full overflow-auto">
                             <div class="p-6 space-y-6">
+                                <div
+                                    class="rounded-lg border bg-card/50 p-4 space-y-3"
+                                >
+                                    <div
+                                        class="text-xs font-semibold text-muted-foreground"
+                                    >
+                                        Register Definition
+                                    </div>
+                                    <div
+                                        class="grid grid-cols-12 gap-3 items-center"
+                                    >
+                                        <template v-if="isEditEnabled">
+                                            <label
+                                                class="col-span-3 text-xs text-muted-foreground"
+                                                >Name</label
+                                            >
+                                            <input
+                                                class="col-span-9 rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                                                :value="detailRegister.name"
+                                                :disabled="!isEditEnabled"
+                                                @input="
+                                                    updateRegisterName(
+                                                        detailRegister.address,
+                                                        $event,
+                                                    )
+                                                "
+                                            />
+                                            <label
+                                                class="col-span-3 text-xs text-muted-foreground"
+                                                >Description</label
+                                            >
+                                            <input
+                                                class="col-span-9 rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                                                :value="
+                                                    detailRegister.description
+                                                "
+                                                :disabled="!isEditEnabled"
+                                                @input="
+                                                    updateRegisterDescription(
+                                                        detailRegister.address,
+                                                        $event,
+                                                    )
+                                                "
+                                            />
+                                        </template>
+                                        <label
+                                            class="col-span-3 text-xs text-muted-foreground"
+                                            >Value</label
+                                        >
+                                        <input
+                                            class="rounded border bg-background px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                                            :class="
+                                                isEditEnabled
+                                                    ? 'col-span-5'
+                                                    : 'col-span-9'
+                                            "
+                                            :value="`0x${detailRegister.value.toString(16).toUpperCase()}`"
+                                            @input="
+                                                updateRegisterValue(
+                                                    detailRegister.address,
+                                                    $event,
+                                                )
+                                            "
+                                        />
+                                        <div
+                                            v-if="isEditEnabled"
+                                            class="col-span-4 flex items-center gap-2"
+                                        >
+                                            <Switch
+                                                :model-value="
+                                                    detailRegister.readOnly
+                                                "
+                                                :disabled="!isEditEnabled"
+                                                @update:model-value="
+                                                    updateRegisterReadOnly(
+                                                        detailRegister.address,
+                                                        $event,
+                                                    )
+                                                "
+                                            />
+                                            <span
+                                                class="text-xs text-muted-foreground"
+                                                >Read-only</span
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
                                 <!-- Large Hex Viewer -->
                                 <div
                                     class="flex flex-col items-center justify-center py-8 rounded-xl bg-muted/30 border border-dashed"
@@ -380,98 +541,190 @@ function getFieldValue(regValue, field) {
 
                                     <div v-else class="grid gap-3">
                                         <div
-                                            v-for="field in detailRegister.fields"
-                                            :key="field.name"
-                                            class="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors group"
+                                            v-for="(
+                                                field, fieldIndex
+                                            ) in detailRegister.fields"
+                                            :key="`${field.name}-${fieldIndex}`"
+                                            class="flex flex-col gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors group"
                                         >
-                                            <div class="flex flex-col">
-                                                <div
-                                                    class="flex items-center gap-2"
-                                                >
-                                                    <span
-                                                        class="text-sm font-bold"
-                                                        >{{ field.name }}</span
-                                                    >
-                                                    <span
-                                                        class="text-[10px] px-1.5 py-0.5 rounded-full bg-muted font-mono"
-                                                    >
-                                                        BIT
-                                                        {{
-                                                            field.size > 1
-                                                                ? `${field.bit + field.size - 1}:${field.bit}`
-                                                                : field.bit
-                                                        }}
-                                                    </span>
-                                                </div>
-                                                <span
-                                                    class="text-xs text-muted-foreground"
-                                                    >{{
-                                                        field.description
-                                                    }}</span
-                                                >
-                                            </div>
-
                                             <div
-                                                class="flex items-center gap-4"
+                                                class="flex items-center justify-between"
                                             >
-                                                <template
-                                                    v-if="field.size === 1"
+                                                <div class="flex flex-col">
+                                                    <div
+                                                        class="flex items-center gap-2"
+                                                    >
+                                                        <span
+                                                            class="text-sm font-bold"
+                                                            >{{
+                                                                field.name
+                                                            }}</span
+                                                        >
+                                                        <span
+                                                            class="text-[10px] px-1.5 py-0.5 rounded-full bg-muted font-mono"
+                                                        >
+                                                            BIT
+                                                            {{
+                                                                field.size > 1
+                                                                    ? `${field.bit + field.size - 1}:${field.bit}`
+                                                                    : field.bit
+                                                            }}
+                                                        </span>
+                                                    </div>
+                                                    <span
+                                                        class="text-xs text-muted-foreground"
+                                                        >{{
+                                                            field.description
+                                                        }}</span
+                                                    >
+                                                </div>
+
+                                                <div
+                                                    class="flex items-center gap-4"
                                                 >
-                                                    <Switch
-                                                        :model-value="
-                                                            getFieldValue(
-                                                                detailRegister.value,
-                                                                field,
-                                                            ) === 1
-                                                        "
-                                                        :disabled="
-                                                            detailRegister.readOnly
-                                                        "
-                                                        @update:model-value="
-                                                            toggleBit(
-                                                                field,
+                                                    <template
+                                                        v-if="field.size === 1"
+                                                    >
+                                                        <Switch
+                                                            :model-value="
                                                                 getFieldValue(
                                                                     detailRegister.value,
                                                                     field,
-                                                                ),
-                                                            )
-                                                        "
-                                                    />
-                                                </template>
-                                                <template v-else>
-                                                    <input
-                                                        type="number"
-                                                        :min="0"
-                                                        :max="
-                                                            (1 << field.size) -
-                                                            1
-                                                        "
-                                                        :value="
-                                                            getFieldValue(
-                                                                detailRegister.value,
-                                                                field,
-                                                            )
-                                                        "
-                                                        :disabled="
-                                                            detailRegister.readOnly
-                                                        "
-                                                        class="w-16 rounded border bg-background px-2 py-1 text-right text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                                                        @input="
-                                                            (e) =>
-                                                                registerStore.updateBitfield(
-                                                                    detailRegister.address,
+                                                                ) === 1
+                                                            "
+                                                            :disabled="
+                                                                detailRegister.readOnly
+                                                            "
+                                                            @update:model-value="
+                                                                toggleBit(
                                                                     field,
-                                                                    parseInt(
-                                                                        e.target
-                                                                            .value,
+                                                                    getFieldValue(
+                                                                        detailRegister.value,
+                                                                        field,
                                                                     ),
                                                                 )
-                                                        "
-                                                    />
-                                                </template>
+                                                            "
+                                                        />
+                                                    </template>
+                                                    <template v-else>
+                                                        <input
+                                                            type="number"
+                                                            :min="0"
+                                                            :max="
+                                                                (1 <<
+                                                                    field.size) -
+                                                                1
+                                                            "
+                                                            :value="
+                                                                getFieldValue(
+                                                                    detailRegister.value,
+                                                                    field,
+                                                                )
+                                                            "
+                                                            :disabled="
+                                                                detailRegister.readOnly
+                                                            "
+                                                            class="w-16 rounded border bg-background px-2 py-1 text-right text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                                                            @input="
+                                                                (e) =>
+                                                                    registerStore.updateBitfield(
+                                                                        detailRegister.address,
+                                                                        field,
+                                                                        parseInt(
+                                                                            e
+                                                                                .target
+                                                                                .value,
+                                                                        ),
+                                                                    )
+                                                            "
+                                                        />
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <div
+                                                v-if="isEditEnabled"
+                                                class="grid grid-cols-12 gap-2 items-center border-t pt-3"
+                                            >
+                                                <input
+                                                    class="col-span-3 rounded border bg-background px-2 py-1 text-xs"
+                                                    :value="field.name"
+                                                    :disabled="!isEditEnabled"
+                                                    @input="
+                                                        updateFieldName(
+                                                            detailRegister.address,
+                                                            fieldIndex,
+                                                            $event,
+                                                        )
+                                                    "
+                                                />
+                                                <input
+                                                    class="col-span-2 rounded border bg-background px-2 py-1 text-xs font-mono"
+                                                    type="number"
+                                                    :min="0"
+                                                    :value="field.bit"
+                                                    :disabled="!isEditEnabled"
+                                                    @input="
+                                                        updateFieldBit(
+                                                            detailRegister.address,
+                                                            fieldIndex,
+                                                            $event,
+                                                        )
+                                                    "
+                                                />
+                                                <input
+                                                    class="col-span-2 rounded border bg-background px-2 py-1 text-xs font-mono"
+                                                    type="number"
+                                                    :min="1"
+                                                    :value="field.size"
+                                                    :disabled="!isEditEnabled"
+                                                    @input="
+                                                        updateFieldSize(
+                                                            detailRegister.address,
+                                                            fieldIndex,
+                                                            $event,
+                                                        )
+                                                    "
+                                                />
+                                                <input
+                                                    class="col-span-4 rounded border bg-background px-2 py-1 text-xs"
+                                                    :value="field.description"
+                                                    :disabled="!isEditEnabled"
+                                                    @input="
+                                                        updateFieldDescription(
+                                                            detailRegister.address,
+                                                            fieldIndex,
+                                                            $event,
+                                                        )
+                                                    "
+                                                />
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    class="col-span-1 h-7 px-2"
+                                                    :disabled="!isEditEnabled"
+                                                    @click="
+                                                        removeField(
+                                                            detailRegister.address,
+                                                            fieldIndex,
+                                                        )
+                                                    "
+                                                >
+                                                    -
+                                                </Button>
                                             </div>
                                         </div>
                                     </div>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        class="h-8"
+                                        v-if="isEditEnabled"
+                                        @click="
+                                            addField(detailRegister.address)
+                                        "
+                                    >
+                                        Add Field
+                                    </Button>
                                 </div>
                             </div>
                         </div>

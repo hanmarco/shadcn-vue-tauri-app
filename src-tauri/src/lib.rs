@@ -2,6 +2,7 @@ use libftd2xx::FtdiCommon;
 use serialport::{SerialPort, SerialPortType};
 use std::fs::File;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -439,6 +440,32 @@ fn save_log_to_file(path: String, content: String) -> Result<(), String> {
     Ok(())
 }
 
+fn exe_dir() -> Result<PathBuf, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let dir = exe
+        .parent()
+        .ok_or_else(|| "Failed to resolve executable directory".to_string())?;
+    Ok(dir.to_path_buf())
+}
+
+#[tauri::command]
+fn load_register_map() -> Result<Option<String>, String> {
+    let path = exe_dir()?.join("registers.user.yaml");
+    if !path.exists() {
+        return Ok(None);
+    }
+    std::fs::read_to_string(&path)
+        .map(Some)
+        .map_err(|e| format!("Failed to read register map: {}", e))
+}
+
+#[tauri::command]
+fn save_register_map(content: String) -> Result<(), String> {
+    let path = exe_dir()?.join("registers.user.yaml");
+    std::fs::write(&path, content)
+        .map_err(|e| format!("Failed to write register map: {}", e))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -458,7 +485,9 @@ pub fn run() {
             set_register,
             read_register,
             write_register,
-            save_log_to_file
+            save_log_to_file,
+            load_register_map,
+            save_register_map
         ])
         .setup(|app| {
             // DLL 검색 경로에 리소스 디렉토리 추가 (윈도우 전용)

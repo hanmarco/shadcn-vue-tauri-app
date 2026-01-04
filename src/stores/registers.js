@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { parse } from "yaml";
+import { parse, stringify } from "yaml";
 import { invoke } from "@tauri-apps/api/core";
 import { useSerialStore } from "./serial";
 
@@ -24,7 +24,37 @@ export const useRegisterStore = defineStore("registers", () => {
     return fallback;
   }
 
+  function applyRegisterMap(data) {
+    const list = Array.isArray(data.registers) ? data.registers : [];
+    registers.value = list.map((reg) => ({
+      address: normalizeNumber(reg.address),
+      name: reg.name || "",
+      description: reg.description || "",
+      value: normalizeNumber(reg.value),
+      readOnly: !!reg.readOnly,
+      fields: Array.isArray(reg.fields)
+        ? reg.fields.map((field) => ({
+            name: field.name || "",
+            bit: normalizeNumber(field.bit),
+            size: normalizeNumber(field.size, 1),
+            description: field.description || "",
+          }))
+        : [],
+    }));
+  }
+
   async function loadRegisters() {
+    try {
+      const userYaml = await invoke("load_register_map");
+      if (userYaml) {
+        const data = parse(userYaml) || {};
+        applyRegisterMap(data);
+        return;
+      }
+    } catch (error) {
+      console.warn("Failed to load user register map:", error);
+    }
+
     try {
       const response = await fetch(registersYamlPath);
       if (!response.ok) {
@@ -34,27 +64,58 @@ export const useRegisterStore = defineStore("registers", () => {
       }
       const yamlText = await response.text();
       const data = parse(yamlText) || {};
-      const list = Array.isArray(data.registers) ? data.registers : [];
-
-      registers.value = list.map((reg) => ({
-        address: normalizeNumber(reg.address),
-        name: reg.name || "",
-        description: reg.description || "",
-        value: normalizeNumber(reg.value),
-        readOnly: !!reg.readOnly,
-        fields: Array.isArray(reg.fields)
-          ? reg.fields.map((field) => ({
-              name: field.name || "",
-              bit: normalizeNumber(field.bit),
-              size: normalizeNumber(field.size, 1),
-              description: field.description || "",
-            }))
-          : [],
-      }));
+      applyRegisterMap(data);
     } catch (error) {
       console.error("Failed to load register map:", error);
       registers.value = [];
     }
+  }
+
+  async function saveRegisterMap() {
+    const yamlText = stringify({ registers: registers.value });
+    await invoke("save_register_map", { content: yamlText });
+  }
+
+  function updateRegisterMeta(address, patch) {
+    const reg = registers.value.find((r) => r.address === address);
+    if (!reg) return;
+    if (patch.name !== undefined) reg.name = patch.name;
+    if (patch.description !== undefined) reg.description = patch.description;
+    if (patch.value !== undefined)
+      reg.value = normalizeNumber(patch.value, reg.value);
+    if (patch.readOnly !== undefined) reg.readOnly = !!patch.readOnly;
+  }
+
+  function updateFieldMeta(address, index, patch) {
+    const reg = registers.value.find((r) => r.address === address);
+    if (!reg || !Array.isArray(reg.fields)) return;
+    const field = reg.fields[index];
+    if (!field) return;
+    if (patch.name !== undefined) field.name = patch.name;
+    if (patch.description !== undefined) field.description = patch.description;
+    if (patch.bit !== undefined)
+      field.bit = normalizeNumber(patch.bit, field.bit);
+    if (patch.size !== undefined) {
+      field.size = Math.max(1, normalizeNumber(patch.size, field.size));
+    }
+  }
+
+  function addField(address) {
+    const reg = registers.value.find((r) => r.address === address);
+    if (!reg) return;
+    if (!Array.isArray(reg.fields)) reg.fields = [];
+    reg.fields.push({
+      name: "NEW_FIELD",
+      bit: 0,
+      size: 1,
+      description: "",
+    });
+  }
+
+  function removeField(address, index) {
+    const reg = registers.value.find((r) => r.address === address);
+    if (!reg || !Array.isArray(reg.fields)) return;
+    reg.fields.splice(index, 1);
   }
 
   const selectedRegisterAddress = ref(null);
@@ -147,8 +208,13 @@ export const useRegisterStore = defineStore("registers", () => {
     selectedRegisterAddress,
     selectedRegister,
     loadRegisters,
+    saveRegisterMap,
     readRegister,
     writeRegister,
     updateBitfield,
+    updateRegisterMeta,
+    updateFieldMeta,
+    addField,
+    removeField,
   };
 });
