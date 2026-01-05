@@ -77,18 +77,38 @@ function updateContainerHeight() {
 }
 
 let resizeObserver;
+function attachResizeObserver(element) {
+    if (!element || typeof ResizeObserver === "undefined") return;
+    if (!resizeObserver) {
+        resizeObserver = new ResizeObserver(() => updateContainerHeight());
+    }
+    resizeObserver.observe(element);
+}
+
+function detachResizeObserver(element) {
+    if (!resizeObserver || !element) return;
+    resizeObserver.unobserve(element);
+}
+
 onMounted(() => {
     updateContainerHeight();
-    if (listParentRef.value && typeof ResizeObserver !== "undefined") {
-        resizeObserver = new ResizeObserver(() => updateContainerHeight());
-        resizeObserver.observe(listParentRef.value);
-    }
+    attachResizeObserver(listParentRef.value);
 });
 
+watch(
+    listParentRef,
+    (element, previous) => {
+        if (previous) detachResizeObserver(previous);
+        if (element) {
+            updateContainerHeight();
+            attachResizeObserver(element);
+        }
+    },
+    { flush: "post" },
+);
+
 onBeforeUnmount(() => {
-    if (resizeObserver && listParentRef.value) {
-        resizeObserver.unobserve(listParentRef.value);
-    }
+    detachResizeObserver(listParentRef.value);
 });
 
 watch(
@@ -255,10 +275,20 @@ function getFieldValue(regValue, field) {
                         />
                     </div>
                 </CardHeader>
-                <CardContent class="p-0 flex-1 overflow-hidden">
+                <CardContent class="p-0 flex flex-1 overflow-hidden">
                     <div
+                        v-if="registerStore.isLoading"
+                        class="flex flex-1 flex-col items-center justify-center text-muted-foreground"
+                    >
+                        <div
+                            class="h-10 w-10 rounded-full border-2 border-muted border-t-primary animate-spin"
+                        />
+                        <p class="mt-3 text-sm">Loading registers...</p>
+                    </div>
+                    <div
+                        v-else
                         ref="listParentRef"
-                        class="h-full overflow-auto"
+                        class="flex-1 overflow-auto"
                         @scroll="scrollTop = $event.target.scrollTop"
                     >
                         <div

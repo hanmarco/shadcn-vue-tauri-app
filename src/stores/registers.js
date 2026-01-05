@@ -8,6 +8,7 @@ export const useRegisterStore = defineStore("registers", () => {
   const serialStore = useSerialStore();
 
   const registers = ref([]);
+  const isLoading = ref(false);
   const registersYamlPath = "/registers.yaml";
 
   function normalizeNumber(value, fallback = 0) {
@@ -44,30 +45,43 @@ export const useRegisterStore = defineStore("registers", () => {
   }
 
   async function loadRegisters() {
+    const startTime = Date.now();
+    isLoading.value = true;
     try {
-      const userYaml = await invoke("load_register_map");
-      if (userYaml) {
-        const data = parse(userYaml) || {};
-        applyRegisterMap(data);
-        return;
+      try {
+        const userYaml = await invoke("load_register_map");
+        if (userYaml) {
+          const data = parse(userYaml) || {};
+          applyRegisterMap(data);
+          return;
+        }
+      } catch (error) {
+        console.warn("Failed to load user register map:", error);
       }
-    } catch (error) {
-      console.warn("Failed to load user register map:", error);
-    }
 
-    try {
-      const response = await fetch(registersYamlPath);
-      if (!response.ok) {
-        throw new Error(
-          `Failed to load ${registersYamlPath}: ${response.status}`,
-        );
+      try {
+        const response = await fetch(registersYamlPath);
+        if (!response.ok) {
+          throw new Error(
+            `Failed to load ${registersYamlPath}: ${response.status}`,
+          );
+        }
+        const yamlText = await response.text();
+        const data = parse(yamlText) || {};
+        applyRegisterMap(data);
+      } catch (error) {
+        console.error("Failed to load register map:", error);
+        registers.value = [];
       }
-      const yamlText = await response.text();
-      const data = parse(yamlText) || {};
-      applyRegisterMap(data);
     } catch (error) {
-      console.error("Failed to load register map:", error);
-      registers.value = [];
+      console.error("Unexpected register load failure:", error);
+    } finally {
+      const elapsed = Date.now() - startTime;
+      const remaining = 300 - elapsed;
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+      }
+      isLoading.value = false;
     }
   }
 
@@ -205,6 +219,7 @@ export const useRegisterStore = defineStore("registers", () => {
 
   return {
     registers,
+    isLoading,
     selectedRegisterAddress,
     selectedRegister,
     loadRegisters,
