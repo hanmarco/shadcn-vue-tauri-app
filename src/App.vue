@@ -5,6 +5,7 @@ import SerialSettings from "@/components/SerialSettings.vue";
 import ControlPanel from "@/components/ControlPanel.vue";
 import DataTable from "@/components/DataTable.vue";
 import RegisterMap from "@/components/RegisterMap.vue";
+import ChatAssistant from "@/components/ChatAssistant.vue";
 
 import { Toaster } from "@/components/ui/sonner";
 
@@ -12,28 +13,38 @@ const activeTab = ref("config");
 </script>
 
 <template>
-  <Toaster position="bottom-right" close-button rich-colors />
-  <MainLayout v-model:activeTab="activeTab">
-    <div class="h-full flex flex-col overflow-hidden">
-      <!-- Configuration View -->
-      <div v-if="activeTab === 'config'" class="h-full overflow-y-auto">
-        <SerialSettings />
-      </div>
+    <Toaster position="bottom-right" close-button rich-colors />
+    <MainLayout v-model:activeTab="activeTab">
+        <div class="h-full flex flex-col overflow-hidden">
+            <!-- Configuration View -->
+            <div v-if="activeTab === 'config'" class="h-full overflow-y-auto">
+                <SerialSettings />
+            </div>
 
-      <!-- Dashboard View -->
-      <div v-if="activeTab === 'dashboard'" class="h-full overflow-y-auto">
-        <ControlPanel />
-      </div>
+            <!-- Dashboard View -->
+            <div
+                v-if="activeTab === 'dashboard'"
+                class="h-full overflow-y-auto"
+            >
+                <ControlPanel />
+            </div>
 
-      <!-- Register Map View -->
-      <div v-if="activeTab === 'registers'" class="h-full overflow-y-auto">
-        <RegisterMap />
-      </div>
+            <!-- Register Map View -->
+            <div
+                v-if="activeTab === 'registers'"
+                class="h-full overflow-y-auto"
+            >
+                <RegisterMap />
+            </div>
 
-      <!-- Log View -->
-      <div v-if="activeTab === 'logs'" class="h-full overflow-hidden flex flex-col">
-        <DataTable />
-      </div>
-    </div>
-  </MainLayout>
+            <!-- Log View -->
+            <div
+                v-if="activeTab === 'logs'"
+                class="h-full overflow-hidden flex flex-col"
+            >
+                <DataTable />
+            </div>
+        </div>
+    </MainLayout>
+    <ChatAssistant v-model:activeTab="activeTab" />
 </template>

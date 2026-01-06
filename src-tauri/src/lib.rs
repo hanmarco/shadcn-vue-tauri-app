@@ -1,4 +1,5 @@
 use libftd2xx::FtdiCommon;
+use serde::{Deserialize, Serialize};
 use serialport::{SerialPort, SerialPortType};
 use std::fs::File;
 use std::io::{Read, Write};
@@ -462,8 +463,206 @@ fn load_register_map() -> Result<Option<String>, String> {
 #[tauri::command]
 fn save_register_map(content: String) -> Result<(), String> {
     let path = exe_dir()?.join("registers.user.yaml");
-    std::fs::write(&path, content)
-        .map_err(|e| format!("Failed to write register map: {}", e))
+    std::fs::write(&path, content).map_err(|e| format!("Failed to write register map: {}", e))
+}
+
+#[derive(Serialize, Deserialize)]
+struct ChatMessage {
+    role: String,
+    content: String,
+}
+
+#[derive(Deserialize)]
+struct ChatCompletionRequest {
+    base_url: String,
+    api_key: Option<String>,
+    model: String,
+    messages: Vec<ChatMessage>,
+    temperature: Option<f32>,
+    max_tokens: Option<u32>,
+}
+
+#[derive(Deserialize)]
+struct ChatCompletionResponse {
+    choices: Vec<ChatChoice>,
+}
+
+#[derive(Deserialize)]
+struct ChatChoice {
+    message: ChatResponseMessage,
+}
+
+#[derive(Deserialize)]
+struct ChatResponseMessage {
+    content: Option<String>,
+}
+
+fn normalize_chat_url(base_url: &str) -> String {
+    let trimmed = base_url.trim_end_matches('/');
+    if trimmed.contains("/chat/completions") || trimmed.contains("/responses") {
+        return trimmed.to_string();
+    }
+    if trimmed.ends_with("/v1") {
+        format!("{}/chat/completions", trimmed)
+    } else {
+        format!("{}/v1/chat/completions", trimmed)
+    }
+}
+
+fn normalize_models_url(base_url: &str) -> String {
+    let trimmed = base_url.trim_end_matches('/');
+    if trimmed.contains("/models") {
+        return trimmed.to_string();
+    }
+    if trimmed.ends_with("/v1") {
+        format!("{}/models", trimmed)
+    } else {
+        format!("{}/v1/models", trimmed)
+    }
+}
+
+fn model_supports_temperature(model: &str) -> bool {
+    let name = model.trim().to_lowercase();
+    !(name.starts_with("o1") || name.starts_with("o3"))
+}
+
+#[tauri::command]
+async fn llm_chat(request: ChatCompletionRequest) -> Result<String, String> {
+    let url = normalize_chat_url(&request.base_url);
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(90))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+
+    let mut body = serde_json::json!({
+        "model": request.model,
+        "messages": request.messages,
+    });
+    if let Some(temp) = request.temperature {
+        if model_supports_temperature(&request.model) {
+            body["temperature"] = serde_json::json!(temp);
+        }
+    }
+    if let Some(max_tokens) = request.max_tokens {
+        body["max_completion_tokens"] = serde_json::json!(max_tokens);
+    }
+
+    let api_key = request.api_key.and_then(|key| {
+        let trimmed = key.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
+
+    let mut response = send_llm_request(&client, &url, &body, api_key.as_deref()).await?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let detail = response.text().await.unwrap_or_default();
+
+        if status.as_u16() == 400 && detail.contains("temperature") {
+            let mut retry_body = body.clone();
+            if let Some(obj) = retry_body.as_object_mut() {
+                obj.remove("temperature");
+            }
+            response = send_llm_request(&client, &url, &retry_body, api_key.as_deref()).await?;
+            if !response.status().is_success() {
+                let retry_status = response.status();
+                let retry_detail = response.text().await.unwrap_or_default();
+                return Err(format!(
+                    "LLM request failed ({}): {}",
+                    retry_status, retry_detail
+                ));
+            }
+        } else {
+            return Err(format!("LLM request failed ({}): {}", status, detail));
+        }
+    }
+
+    let payload = response
+        .json::<ChatCompletionResponse>()
+        .await
+        .map_err(|e| format!("Failed to parse LLM response: {}", e))?;
+
+    let content = payload
+        .choices
+        .first()
+        .and_then(|choice| choice.message.content.clone())
+        .unwrap_or_default();
+
+    Ok(content)
+}
+
+#[derive(Deserialize)]
+struct ModelListResponse {
+    data: Vec<ModelEntry>,
+}
+
+#[derive(Deserialize)]
+struct ModelEntry {
+    id: String,
+}
+
+#[tauri::command]
+async fn list_llm_models(base_url: String, api_key: Option<String>) -> Result<Vec<String>, String> {
+    let url = normalize_models_url(&base_url);
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+
+    let api_key = api_key.and_then(|key| {
+        let trimmed = key.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
+
+    let mut request_builder = client.get(url);
+    if let Some(key) = api_key.as_deref() {
+        request_builder = request_builder.bearer_auth(key);
+    }
+
+    let response = request_builder
+        .send()
+        .await
+        .map_err(|e| format!("Model request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let detail = response.text().await.unwrap_or_default();
+        return Err(format!("Model request failed ({}): {}", status, detail));
+    }
+
+    let payload = response
+        .json::<ModelListResponse>()
+        .await
+        .map_err(|e| format!("Failed to parse model list: {}", e))?;
+
+    let mut models: Vec<String> = payload.data.into_iter().map(|item| item.id).collect();
+    models.sort();
+    models.dedup();
+    Ok(models)
+}
+
+async fn send_llm_request(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+    api_key: Option<&str>,
+) -> Result<reqwest::Response, String> {
+    let mut request_builder = client.post(url).json(body);
+    if let Some(key) = api_key {
+        request_builder = request_builder.bearer_auth(key);
+    }
+    request_builder
+        .send()
+        .await
+        .map_err(|e| format!("LLM request failed: {}", e))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -487,7 +686,9 @@ pub fn run() {
             write_register,
             save_log_to_file,
             load_register_map,
-            save_register_map
+            save_register_map,
+            llm_chat,
+            list_llm_models
         ])
         .setup(|app| {
             // DLL 검색 경로에 리소스 디렉토리 추가 (윈도우 전용)
