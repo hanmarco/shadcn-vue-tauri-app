@@ -6,6 +6,7 @@ import {
     MessageCircleIcon,
     SendIcon,
     SettingsIcon,
+    Trash2Icon,
     XIcon,
 } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
@@ -174,6 +175,10 @@ function scrollToBottom() {
     });
 }
 
+function clearMessages() {
+    messages.value = [];
+}
+
 async function sendMessage() {
     if (!canSend.value) return;
 
@@ -322,6 +327,14 @@ async function runAction(action) {
                         @click="showSettings = !showSettings"
                     >
                         <SettingsIcon />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        :disabled="!messages.length"
+                        @click="clearMessages"
+                    >
+                        <Trash2Icon />
                     </Button>
                     <Button
                         variant="ghost"
