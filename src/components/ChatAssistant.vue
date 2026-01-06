@@ -1,11 +1,12 @@
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { LazyStore } from "@tauri-apps/plugin-store";
 import {
     MessageCircleIcon,
     SendIcon,
     SettingsIcon,
+    PanelRightIcon,
     Trash2Icon,
     XIcon,
 } from "lucide-vue-next";
@@ -34,6 +35,10 @@ const isSending = ref(false);
 const input = ref("");
 const messages = ref([]);
 const scrollRef = ref(null);
+const isDocked = ref(false);
+const dockedClassName = "chat-docked";
+
+const showPanel = computed(() => isDocked.value || isOpen.value);
 
 const settingsStore = new LazyStore("llm_settings.json");
 const settings = ref({
@@ -123,6 +128,20 @@ onMounted(() => {
     loadSettings();
 });
 
+watch(
+    isDocked,
+    (value) => {
+        if (typeof document === "undefined") return;
+        document.body.classList.toggle(dockedClassName, value);
+    },
+    { immediate: true },
+);
+
+onUnmounted(() => {
+    if (typeof document === "undefined") return;
+    document.body.classList.remove(dockedClassName);
+});
+
 async function fetchModels() {
     modelError.value = "";
     modelOptions.value = [];
@@ -177,6 +196,13 @@ function scrollToBottom() {
 
 function clearMessages() {
     messages.value = [];
+}
+
+function toggleDocked() {
+    isDocked.value = !isDocked.value;
+    if (isDocked.value) {
+        isOpen.value = true;
+    }
 }
 
 async function sendMessage() {
@@ -313,10 +339,21 @@ async function runAction(action) {
 </script>
 
 <template>
-    <div class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div
+        class="fixed z-50"
+        :class="
+            isDocked
+                ? 'top-0 right-0 h-screen w-[360px] max-w-[92vw]'
+                : 'bottom-6 right-6 flex flex-col items-end gap-3'
+        "
+    >
         <Card
-            v-if="isOpen"
-            class="w-[360px] max-w-[92vw] overflow-hidden shadow-xl"
+            v-if="showPanel"
+            :class="
+                isDocked
+                    ? 'h-full overflow-hidden shadow-xl'
+                    : 'w-[360px] max-w-[92vw] overflow-hidden shadow-xl'
+            "
         >
             <div class="flex items-center justify-between border-b px-4 py-3">
                 <div class="text-sm font-semibold">LLM Assistant</div>
@@ -327,6 +364,13 @@ async function runAction(action) {
                         @click="showSettings = !showSettings"
                     >
                         <SettingsIcon />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        @click="toggleDocked"
+                    >
+                        <PanelRightIcon />
                     </Button>
                     <Button
                         variant="ghost"
@@ -527,6 +571,7 @@ async function runAction(action) {
         </Card>
 
         <Button
+            v-if="!isDocked"
             size="icon-lg"
             class="rounded-full shadow-lg"
             @click="isOpen = !isOpen"
