@@ -36,9 +36,11 @@ const input = ref("");
 const messages = ref([]);
 const scrollRef = ref(null);
 const isDocked = ref(false);
+const preferredDocked = ref(false);
 const dockedClassName = "chat-docked";
 
-const showPanel = computed(() => isDocked.value || isOpen.value);
+const showPanel = computed(() => isOpen.value);
+const isDockedActive = computed(() => isDocked.value && isOpen.value);
 
 const settingsStore = new LazyStore("llm_settings.json");
 const settings = ref({
@@ -129,7 +131,7 @@ onMounted(() => {
 });
 
 watch(
-    isDocked,
+    isDockedActive,
     (value) => {
         if (typeof document === "undefined") return;
         document.body.classList.toggle(dockedClassName, value);
@@ -200,9 +202,20 @@ function clearMessages() {
 
 function toggleDocked() {
     isDocked.value = !isDocked.value;
+    preferredDocked.value = isDocked.value;
     if (isDocked.value) {
         isOpen.value = true;
     }
+}
+
+function closePanel() {
+    isOpen.value = false;
+    isDocked.value = false;
+}
+
+function openPanel() {
+    isDocked.value = preferredDocked.value;
+    isOpen.value = true;
 }
 
 async function sendMessage() {
@@ -340,6 +353,7 @@ async function runAction(action) {
 
 <template>
     <div
+        v-if="showPanel"
         class="fixed z-50"
         :class="
             isDocked
@@ -348,10 +362,9 @@ async function runAction(action) {
         "
     >
         <Card
-            v-if="showPanel"
             :class="
                 isDocked
-                    ? 'h-full overflow-hidden shadow-xl'
+                    ? 'h-full overflow-hidden shadow-xl flex flex-col'
                     : 'w-[360px] max-w-[92vw] overflow-hidden shadow-xl'
             "
         >
@@ -380,11 +393,7 @@ async function runAction(action) {
                     >
                         <Trash2Icon />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        @click="isOpen = false"
-                    >
+                    <Button variant="ghost" size="icon-sm" @click="closePanel">
                         <XIcon />
                     </Button>
                 </div>
@@ -485,8 +494,12 @@ async function runAction(action) {
             </div>
 
             <div
-                class="max-h-[360px] overflow-y-auto px-4 py-3 space-y-3"
                 ref="scrollRef"
+                :class="
+                    isDocked
+                        ? 'flex-1 overflow-y-auto px-4 py-3 space-y-3'
+                        : 'max-h-[360px] overflow-y-auto px-4 py-3 space-y-3'
+                "
             >
                 <div
                     v-if="!messages.length"
@@ -569,14 +582,15 @@ async function runAction(action) {
                 </div>
             </form>
         </Card>
-
-        <Button
-            v-if="!isDocked"
-            size="icon-lg"
-            class="rounded-full shadow-lg"
-            @click="isOpen = !isOpen"
-        >
-            <MessageCircleIcon />
-        </Button>
     </div>
+
+    <Button
+        v-if="!showPanel"
+        size="icon-lg"
+        class="fixed z-50 rounded-full shadow-lg"
+        :class="'bottom-6 right-6'"
+        @click="openPanel"
+    >
+        <MessageCircleIcon />
+    </Button>
 </template>
