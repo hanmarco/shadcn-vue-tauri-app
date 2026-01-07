@@ -14,6 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import SelectItem from "@/components/ui/select/SelectItem.vue";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useSerialStore } from "@/stores/serial";
 import { useControlStore } from "@/stores/control";
 import { useRegisterStore } from "@/stores/registers";
@@ -45,6 +51,7 @@ const showPanel = computed(() => isOpen.value);
 const isDockedActive = computed(() => isDocked.value && isOpen.value);
 
 const settingsStore = new LazyStore("llm_settings.json");
+const autoApprovedKey = "auto-approved";
 const settings = ref({
     baseUrl: "",
     apiKey: "",
@@ -57,6 +64,9 @@ const modelOptions = ref([]);
 const modelError = ref("");
 const isLoadingModels = ref(false);
 const registerQuery = ref("");
+const autoApproved = ref(false);
+const isAutoApproving = ref(false);
+const isLoadingAutoApproved = ref(false);
 
 const canSend = computed(() => {
     return (
@@ -116,6 +126,24 @@ async function loadSettings() {
     }
 }
 
+async function loadAutoApproved() {
+    isLoadingAutoApproved.value = true;
+    try {
+        const saved = await settingsStore.get(autoApprovedKey);
+        if (typeof saved === "boolean") {
+            autoApproved.value = saved;
+        }
+    } finally {
+        isLoadingAutoApproved.value = false;
+    }
+}
+
+async function saveAutoApproved() {
+    if (isLoadingAutoApproved.value) return;
+    await settingsStore.set(autoApprovedKey, autoApproved.value);
+    await settingsStore.save();
+}
+
 async function saveSettings() {
     if (isLoadingSettings.value) return;
     await settingsStore.set("llm-settings", { ...settings.value });
@@ -132,6 +160,7 @@ watch(
 
 onMounted(() => {
     loadSettings();
+    loadAutoApproved();
 });
 
 watch(
@@ -345,6 +374,7 @@ async function sendMessage() {
             content: payload.reply || "No response.",
             actions: normalizedActions,
         });
+        runAutoApproveQueue();
     } catch (error) {
         messages.value.push({
             role: "assistant",
@@ -393,6 +423,41 @@ function formatActionLabel(action) {
             return action.type;
     }
 }
+
+function findNextPendingAction() {
+    for (const message of messages.value) {
+        const actions = message.actions || [];
+        for (const action of actions) {
+            if (!action) continue;
+            if (action.status === "running" || action.status === "done") {
+                continue;
+            }
+            if (action.status === "error") continue;
+            return action;
+        }
+    }
+    return null;
+}
+
+async function runAutoApproveQueue() {
+    if (!autoApproved.value || isAutoApproving.value) return;
+
+    isAutoApproving.value = true;
+    try {
+        while (autoApproved.value) {
+            const nextAction = findNextPendingAction();
+            if (!nextAction) break;
+            await runAction(nextAction);
+        }
+    } finally {
+        isAutoApproving.value = false;
+    }
+}
+
+watch(autoApproved, (value) => {
+    saveAutoApproved();
+    if (value) runAutoApproveQueue();
+});
 
 async function runAction(action) {
     if (!action || action.status === "running") return;
@@ -492,6 +557,10 @@ async function runAction(action) {
     } catch (error) {
         action.status = "error";
         action.error = error.toString();
+    } finally {
+        if (autoApproved.value) {
+            runAutoApproveQueue();
+        }
     }
 }
 </script>
@@ -718,6 +787,27 @@ async function runAction(action) {
                         <SendIcon />
                     </Button>
                 </div>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <label class="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+                                <input
+                                    v-model="autoApproved"
+                                    type="checkbox"
+                                    class="h-3 w-3 rounded border border-muted-foreground"
+                                />
+                                Auto Approved
+                            </label>
+                        </TooltipTrigger>
+                        <TooltipContent
+                            side="right"
+                            :side-offset="6"
+                            class="max-w-[220px] text-xs"
+                        >
+                            Auto Approved를 켜면 승인 버튼이 자동으로 순서대로 수행됩니다.
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
                 <div
                     v-if="!settings.baseUrl || !settings.model"
                     class="mt-2 text-[11px] text-muted-foreground"
