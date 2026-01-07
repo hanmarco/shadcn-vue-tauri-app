@@ -16,6 +16,7 @@ import { Select } from "@/components/ui/select";
 import SelectItem from "@/components/ui/select/SelectItem.vue";
 import { useSerialStore } from "@/stores/serial";
 import { useControlStore } from "@/stores/control";
+import { useRegisterStore } from "@/stores/registers";
 
 const props = defineProps({
     activeTab: {
@@ -28,6 +29,7 @@ const emit = defineEmits(["update:activeTab"]);
 
 const serialStore = useSerialStore();
 const controlStore = useControlStore();
+const registerStore = useRegisterStore();
 
 const isOpen = ref(false);
 const showSettings = ref(false);
@@ -54,6 +56,7 @@ const isLoadingSettings = ref(false);
 const modelOptions = ref([]);
 const modelError = ref("");
 const isLoadingModels = ref(false);
+const registerQuery = ref("");
 
 const canSend = computed(() => {
     return (
@@ -90,6 +93,7 @@ const systemPrompt = computed(() => {
         "- set_vio (value)",
         "- set_frequency",
         "- set_register (address, value)",
+        "- select_register (name is preferred; use address only if you have a numeric address)",
         `Context snapshot: ${JSON.stringify(contextSnapshot.value)}`,
     ].join("\n");
 });
@@ -218,6 +222,87 @@ function openPanel() {
     isOpen.value = true;
 }
 
+const registerResults = computed(() => {
+    const query = registerQuery.value.trim().toLowerCase();
+    if (!query) return [];
+    const list = registerStore.registers || [];
+    const matches = list.filter((reg) => {
+        const addressHex = `0x${reg.address.toString(16).toLowerCase()}`;
+        return (
+            reg.name.toLowerCase().includes(query) ||
+            reg.description.toLowerCase().includes(query) ||
+            addressHex.includes(query) ||
+            reg.address.toString(10).includes(query)
+        );
+    });
+    return matches.slice(0, 6);
+});
+
+function parseRegisterAddress(value) {
+    if (typeof value === "number") return value;
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith("0x") || trimmed.startsWith("0X")) {
+        const parsed = Number.parseInt(trimmed.slice(2), 16);
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+    const regMatch = trimmed.match(/^reg[_\s-]?([0-9a-f]+)$/i);
+    if (regMatch) {
+        const parsed = Number.parseInt(regMatch[1], 16);
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+    const parsed = Number.parseInt(trimmed, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+}
+
+function parseRegisterValue(value) {
+    if (typeof value === "number") return value;
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith("0x") || trimmed.startsWith("0X")) {
+        const parsed = Number.parseInt(trimmed.slice(2), 16);
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+    const parsed = Number.parseInt(trimmed, 16);
+    return Number.isNaN(parsed) ? null : parsed;
+}
+
+function resolveRegisterTarget(action) {
+    const list = registerStore.registers || [];
+    const addressValue = parseRegisterAddress(action?.address);
+    if (addressValue !== null) {
+        return list.find((reg) => reg.address === addressValue) || null;
+    }
+    const nameValue =
+        typeof action?.name === "string"
+            ? action.name
+            : typeof action?.address === "string"
+              ? action.address
+              : "";
+    if (typeof nameValue === "string" && nameValue.trim()) {
+        const needle = nameValue.toLowerCase().trim();
+        if (!needle) return null;
+        return (
+            list.find((reg) => reg.name.toLowerCase() === needle) ||
+            list.find((reg) => reg.name.toLowerCase().includes(needle)) ||
+            list.find((reg) =>
+                reg.description.toLowerCase().includes(needle),
+            ) ||
+            null
+        );
+    }
+    return null;
+}
+
+function selectRegisterFromSearch(reg) {
+    if (!reg) return;
+    registerStore.selectedRegisterAddress = reg.address;
+    emit("update:activeTab", "registers");
+    registerQuery.value = "";
+}
+
 async function sendMessage() {
     if (!canSend.value) return;
 
@@ -291,6 +376,19 @@ function formatActionLabel(action) {
             return "set_frequency";
         case "set_register":
             return `set_register -> ${action.address}, ${action.value}`;
+        case "select_register":
+            if (typeof action.address === "number") {
+                return `select_register -> 0x${action.address
+                    .toString(16)
+                    .toUpperCase()}`;
+            }
+            if (typeof action.name === "string") {
+                return `select_register -> ${action.name}`;
+            }
+            if (typeof action.address === "string") {
+                return `select_register -> 0x${action.address}`;
+            }
+            return "select_register";
         default:
             return action.type;
     }
@@ -333,13 +431,58 @@ async function runAction(action) {
                 await controlStore.setFrequency();
                 break;
             case "set_register":
-                if (typeof action.address === "number") {
-                    controlStore.registerAddress = action.address;
+                if (
+                    (!registerStore.registers ||
+                        registerStore.registers.length === 0) &&
+                    !registerStore.isLoading
+                ) {
+                    await registerStore.loadRegisters();
                 }
-                if (typeof action.value === "number") {
-                    await controlStore.setRegisterValue(action.value);
+                let targetAddress = null;
+                if (typeof action.address === "number") {
+                    targetAddress = action.address;
+                } else if (typeof action.address === "string") {
+                    const addr = parseRegisterAddress(action.address);
+                    if (addr !== null) {
+                        targetAddress = addr;
+                    } else if (action.address.trim()) {
+                        const target = resolveRegisterTarget(action);
+                        if (target) {
+                            targetAddress = target.address;
+                        }
+                    }
+                }
+                if (typeof targetAddress === "number") {
+                    controlStore.registerAddress = targetAddress;
+                    registerStore.selectedRegisterAddress = targetAddress;
+                }
+                console.log("Setting register", targetAddress, action.value);
+                const parsedValue = parseRegisterValue(action.value);
+                if (typeof parsedValue === "number") {
+                    if (typeof targetAddress === "number") {
+                        registerStore.updateRegisterMeta(targetAddress, {
+                            value: parsedValue,
+                        });
+                    }
+                    await controlStore.setRegisterValue(parsedValue);
                 }
                 break;
+            case "select_register": {
+                if (
+                    (!registerStore.registers ||
+                        registerStore.registers.length === 0) &&
+                    !registerStore.isLoading
+                ) {
+                    await registerStore.loadRegisters();
+                }
+                const target = resolveRegisterTarget(action);
+                if (target) {
+                    registerStore.selectedRegisterAddress = target.address;
+                    controlStore.registerAddress = target.address;
+                    emit("update:activeTab", "registers");
+                }
+                break;
+            }
             default:
                 break;
         }
@@ -490,6 +633,40 @@ async function runAction(action) {
                             class="h-9 w-full rounded-md border bg-background px-3 text-xs"
                         />
                     </div>
+                </div>
+            </div>
+
+            <div class="border-b px-4 py-3 space-y-2">
+                <div class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Register Map Search
+                </div>
+                <input
+                    v-model="registerQuery"
+                    placeholder="Search by name or address..."
+                    class="h-9 w-full rounded-md border bg-background px-3 text-xs"
+                />
+                <div v-if="registerQuery && registerResults.length" class="space-y-2">
+                    <button
+                        v-for="reg in registerResults"
+                        :key="reg.address"
+                        type="button"
+                        class="flex w-full items-center justify-between rounded-md border bg-background px-2 py-2 text-left text-[11px] hover:bg-muted/50"
+                        @click="selectRegisterFromSearch(reg)"
+                    >
+                        <span class="font-mono">
+                            0x{{ reg.address.toString(16).toUpperCase().padStart(4, "0") }}
+                        </span>
+                        <span class="truncate px-2">{{ reg.name }}</span>
+                        <span class="font-mono text-muted-foreground">
+                            0x{{ reg.value.toString(16).toUpperCase().padStart(2, "0") }}
+                        </span>
+                    </button>
+                </div>
+                <div
+                    v-else-if="registerQuery"
+                    class="text-[11px] text-muted-foreground"
+                >
+                    No register matches found.
                 </div>
             </div>
 
