@@ -637,41 +637,6 @@ async function runAction(action) {
                     </div>
                 </div>
             </div>
-
-            <div class="border-b px-4 py-3 space-y-2">
-                <div class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Register Map Search
-                </div>
-                <input
-                    v-model="registerQuery"
-                    placeholder="Search by name or address..."
-                    class="h-9 w-full rounded-md border bg-background px-3 text-xs"
-                />
-                <div v-if="registerQuery && registerResults.length" class="space-y-2">
-                    <button
-                        v-for="reg in registerResults"
-                        :key="reg.address"
-                        type="button"
-                        class="flex w-full items-center justify-between rounded-md border bg-background px-2 py-2 text-left text-[11px] hover:bg-muted/50"
-                        @click="selectRegisterFromSearch(reg)"
-                    >
-                        <span class="font-mono">
-                            0x{{ reg.address.toString(16).toUpperCase().padStart(4, "0") }}
-                        </span>
-                        <span class="truncate px-2">{{ reg.name }}</span>
-                        <span class="font-mono text-muted-foreground">
-                            0x{{ reg.value.toString(16).toUpperCase().padStart(2, "0") }}
-                        </span>
-                    </button>
-                </div>
-                <div
-                    v-else-if="registerQuery"
-                    class="text-[11px] text-muted-foreground"
-                >
-                    No register matches found.
-                </div>
-            </div>
-
             <div
                 ref="scrollRef"
                 :class="
