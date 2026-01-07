@@ -431,6 +431,7 @@ async function runAction(action) {
                 await controlStore.setFrequency();
                 break;
             case "set_register":
+                emit("update:activeTab", "registers");
                 if (
                     (!registerStore.registers ||
                         registerStore.registers.length === 0) &&
@@ -468,6 +469,7 @@ async function runAction(action) {
                 }
                 break;
             case "select_register": {
+                emit("update:activeTab", "registers");
                 if (
                     (!registerStore.registers ||
                         registerStore.registers.length === 0) &&
