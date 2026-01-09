@@ -23,6 +23,7 @@ import {
 import { useSerialStore } from "@/stores/serial";
 import { useControlStore } from "@/stores/control";
 import { useRegisterStore } from "@/stores/registers";
+import { useUiStore } from "@/stores/ui";
 
 const props = defineProps({
     activeTab: {
@@ -36,6 +37,7 @@ const emit = defineEmits(["update:activeTab"]);
 const serialStore = useSerialStore();
 const controlStore = useControlStore();
 const registerStore = useRegisterStore();
+const uiStore = useUiStore();
 
 const isOpen = ref(false);
 const showSettings = ref(false);
@@ -67,6 +69,11 @@ const registerQuery = ref("");
 const autoApproved = ref(false);
 const isAutoApproving = ref(false);
 const isLoadingAutoApproved = ref(false);
+
+async function enableScreenTransition() {
+    uiStore.isScreenTransitionEnabled = true;
+    await nextTick();
+}
 
 const canSend = computed(() => {
     return (
@@ -467,6 +474,7 @@ async function runAction(action) {
         switch (action.type) {
             case "set_tab":
                 if (action.tab) {
+                    await enableScreenTransition();
                     emit("update:activeTab", action.tab);
                 }
                 break;
@@ -496,6 +504,7 @@ async function runAction(action) {
                 await controlStore.setFrequency();
                 break;
             case "set_register":
+                await enableScreenTransition();
                 emit("update:activeTab", "registers");
                 if (
                     (!registerStore.registers ||
@@ -534,6 +543,7 @@ async function runAction(action) {
                 }
                 break;
             case "select_register": {
+                await enableScreenTransition();
                 emit("update:activeTab", "registers");
                 if (
                     (!registerStore.registers ||

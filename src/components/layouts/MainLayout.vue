@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useSerialStore } from "@/stores/serial";
+import { useUiStore } from "@/stores/ui";
 import { useDark, useToggle } from "@vueuse/core";
 import {
     Tooltip,
@@ -38,6 +39,7 @@ const props = defineProps({
 const emit = defineEmits(["update:activeTab"]);
 
 const serialStore = useSerialStore();
+const uiStore = useUiStore();
 const isDark = useDark();
 const toggleDark = useToggle(isDark);
 
@@ -62,6 +64,11 @@ const handleConnection = () => {
             serialStore.scanDevices();
         }
     }
+};
+
+const handleTabClick = (tab) => {
+    uiStore.isScreenTransitionEnabled = false;
+    emit("update:activeTab", tab);
 };
 </script>
 
@@ -138,28 +145,28 @@ const handleConnection = () => {
                     <div class="space-y-1">
                         <SidebarItem
                             :active="activeTab === 'config'"
-                            @click="emit('update:activeTab', 'config')"
+                            @click="handleTabClick('config')"
                         >
                             <SettingsIcon class="mr-2 h-4 w-4" />
                             <span>Configuration</span>
                         </SidebarItem>
                         <SidebarItem
                             :active="activeTab === 'dashboard'"
-                            @click="emit('update:activeTab', 'dashboard')"
+                            @click="handleTabClick('dashboard')"
                         >
                             <LayoutDashboardIcon class="mr-2 h-4 w-4" />
                             <span>Dashboard</span>
                         </SidebarItem>
                         <SidebarItem
                             :active="activeTab === 'registers'"
-                            @click="emit('update:activeTab', 'registers')"
+                            @click="handleTabClick('registers')"
                         >
                             <CpuIcon class="mr-2 h-4 w-4" />
                             <span>Register Map</span>
                         </SidebarItem>
                         <SidebarItem
                             :active="activeTab === 'logs'"
-                            @click="emit('update:activeTab', 'logs')"
+                            @click="handleTabClick('logs')"
                         >
                             <ScrollTextIcon class="mr-2 h-4 w-4" />
                             <span>Logs</span>
