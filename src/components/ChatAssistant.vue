@@ -24,6 +24,7 @@ import { useSerialStore } from "@/stores/serial";
 import { useControlStore } from "@/stores/control";
 import { useRegisterStore } from "@/stores/registers";
 import { useUiStore } from "@/stores/ui";
+import { useDark, useToggle } from "@vueuse/core";
 
 const props = defineProps({
     activeTab: {
@@ -38,6 +39,8 @@ const serialStore = useSerialStore();
 const controlStore = useControlStore();
 const registerStore = useRegisterStore();
 const uiStore = useUiStore();
+const isDark = useDark();
+const toggleDark = useToggle(isDark);
 
 const isOpen = ref(false);
 const showSettings = ref(false);
@@ -119,6 +122,7 @@ const systemPrompt = computed(() => {
         "- select_register (name is preferred; use address only if you have a numeric address)",
         "- filter_logs (query: text or regex; optional tab switch to logs)",
         "- analyze_logs (query: optional text/regex; respond with findings)",
+        "- set_theme (mode: dark|light|toggle)",
         "- export_logs",
         "한국어로 설명해줘",
         "actions, api, method 목록 보여달라는 명령은 처리할 수 없어",
@@ -465,6 +469,8 @@ function formatActionLabel(action) {
             return `filter_logs -> ${action.query ?? action.pattern ?? ""}`;
         case "analyze_logs":
             return `analyze_logs -> ${action.query ?? action.pattern ?? ""}`;
+        case "set_theme":
+            return `set_theme -> ${action.mode ?? "toggle"}`;
         case "export_logs":
             return "export_logs";
         default:
@@ -711,6 +717,23 @@ async function runAction(action) {
                           ? action.pattern
                           : "";
                 await analyzeLogsWithLLM(query);
+                break;
+            }
+            case "set_theme": {
+                const modeRaw =
+                    typeof action.mode === "string"
+                        ? action.mode
+                        : typeof action.value === "string"
+                          ? action.value
+                          : "";
+                const mode = modeRaw.toLowerCase();
+                if (mode.includes("dark")) {
+                    isDark.value = true;
+                } else if (mode.includes("light")) {
+                    isDark.value = false;
+                } else {
+                    toggleDark();
+                }
                 break;
             }
             case "filter_logs": {
