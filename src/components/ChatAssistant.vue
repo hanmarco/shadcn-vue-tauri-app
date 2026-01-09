@@ -115,6 +115,7 @@ const systemPrompt = computed(() => {
         "- set_frequency",
         "- set_register (address, value)",
         "- select_register (name is preferred; use address only if you have a numeric address)",
+        "- export_logs",
         `Context snapshot: ${JSON.stringify(contextSnapshot.value)}`,
     ].join("\n");
 });
@@ -454,6 +455,8 @@ function formatActionLabel(action) {
                 return `select_register -> 0x${action.address}`;
             }
             return "select_register";
+        case "export_logs":
+            return "export_logs";
         default:
             return action.type;
     }
@@ -586,6 +589,10 @@ async function runAction(action) {
                     controlStore.registerAddress = target.address;
                     emit("update:activeTab", "registers");
                 }
+                break;
+            }
+            case "export_logs": {
+                await serialStore.exportLogs();
                 break;
             }
             default:
