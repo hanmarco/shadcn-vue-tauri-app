@@ -115,6 +115,7 @@ const systemPrompt = computed(() => {
         "- set_frequency",
         "- set_register (address, value)",
         "- select_register (name is preferred; use address only if you have a numeric address)",
+        "- filter_logs (query: text or regex; optional tab switch to logs)",
         "- export_logs",
         `Context snapshot: ${JSON.stringify(contextSnapshot.value)}`,
     ].join("\n");
@@ -455,6 +456,8 @@ function formatActionLabel(action) {
                 return `select_register -> 0x${action.address}`;
             }
             return "select_register";
+        case "filter_logs":
+            return `filter_logs -> ${action.query ?? action.pattern ?? ""}`;
         case "export_logs":
             return "export_logs";
         default:
@@ -593,6 +596,18 @@ async function runAction(action) {
             }
             case "export_logs": {
                 await serialStore.exportLogs();
+                break;
+            }
+            case "filter_logs": {
+                const query =
+                    typeof action.query === "string"
+                        ? action.query
+                        : typeof action.pattern === "string"
+                          ? action.pattern
+                          : "";
+                uiStore.logSearchQuery = query;
+                await enableScreenTransition();
+                emit("update:activeTab", "logs");
                 break;
             }
             default:
