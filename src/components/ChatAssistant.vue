@@ -113,7 +113,7 @@ const systemPrompt = computed(() => {
         "Allowed action types:",
         "- set_tab (tab)",
         "- scan_devices",
-        "- connect (port)",
+        "- connect (port?)",
         "- disconnect",
         "- send_command (data)",
         "- set_vio (value)",

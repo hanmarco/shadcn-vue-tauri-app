@@ -300,12 +300,6 @@ export const useSerialStore = defineStore("serial", () => {
           : selectedDevice.value;
       }
 
-      if (selectedDevice.value === VIRTUAL_DEVICE) {
-        isConnected.value = false;
-        selectedDevice.value = null;
-        return true;
-      }
-
       await invoke("disconnect_serial");
       isConnected.value = false;
 
