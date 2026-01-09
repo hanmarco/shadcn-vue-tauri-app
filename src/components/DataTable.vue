@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { useSerialStore } from "@/stores/serial";
+import { useUiStore } from "@/stores/ui";
 import { 
   DownloadIcon, 
   Trash2Icon, 
@@ -26,12 +27,18 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 const serialStore = useSerialStore();
+const uiStore = useUiStore();
 const scrollContainer = ref(null);
 const sortColumn = ref("timestamp");
 const sortDirection = ref("desc");
 
 // New features: Search and Filtering
-const searchQuery = ref("");
+const searchQuery = computed({
+  get: () => uiStore.logSearchQuery,
+  set: (value) => {
+    uiStore.logSearchQuery = value;
+  },
+});
 const typeFilter = ref("all"); // 'all', 'tx', 'rx'
 
 function buildSearchMatcher(query) {
@@ -76,7 +83,10 @@ const filteredData = computed(() => {
   if (matcher) {
     data = data.filter(
       (item) =>
-        matcher(item.data || "") || matcher(item.port ? String(item.port) : ""),
+        matcher(item.data || "") ||
+        matcher((item.data || "").trim()) ||
+        matcher(item.port ? String(item.port) : "") ||
+        matcher(item.port ? String(item.port).trim() : ""),
     );
   }
 
