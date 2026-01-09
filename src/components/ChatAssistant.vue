@@ -526,6 +526,9 @@ async function analyzeLogsWithLLM(query) {
         throw new Error("Configure the LLM base URL and model first.");
     }
 
+    // Ensure full log set is analyzed (clear UI filter)
+    uiStore.logSearchQuery = "";
+
     const sampleLogs = selectLogsForAnalysis(query);
     const lines = sampleLogs
         .map((log) => {
