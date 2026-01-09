@@ -258,6 +258,24 @@ function clearMessages() {
     messages.value = [];
 }
 
+async function handleConnection() {
+    if (serialStore.isConnected) {
+        await serialStore.disconnect();
+        return;
+    }
+
+    const target =
+        serialStore.selectedDevice || serialStore.lastConnectedDevice;
+
+    if (target) {
+        await serialStore.connect(target);
+    } else if (serialStore.deviceType !== "serialport") {
+        await serialStore.connect("Default IC");
+    } else {
+        await serialStore.scanDevices();
+    }
+}
+
 function toggleDocked() {
     isDocked.value = !isDocked.value;
     preferredDocked.value = isDocked.value;
@@ -632,6 +650,8 @@ async function runAction(action) {
             case "connect":
                 if (action.port) {
                     await serialStore.connect(action.port);
+                } else {
+                    await handleConnection();
                 }
                 break;
             case "disconnect":
