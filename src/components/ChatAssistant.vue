@@ -797,11 +797,12 @@ async function runAction(action) {
         "
     >
         <Card
-            :class="
+            :class="[
                 isDocked
                     ? 'h-full overflow-hidden shadow-xl flex flex-col'
-                    : 'w-[360px] max-w-[92vw] overflow-hidden shadow-xl'
-            "
+                    : 'w-[360px] max-w-[92vw] overflow-hidden shadow-xl',
+                'backdrop-blur-xl bg-white/25 dark:bg-slate-900/20 border-white/30 dark:border-white/5 shadow-2xl shadow-[0_20px_60px_rgba(0,0,0,0.28)]',
+            ]"
         >
             <div class="flex items-center justify-between border-b px-4 py-3">
                 <div class="text-sm font-semibold">LLM Assistant</div>
