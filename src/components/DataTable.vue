@@ -34,23 +34,52 @@ const sortDirection = ref("desc");
 const searchQuery = ref("");
 const typeFilter = ref("all"); // 'all', 'tx', 'rx'
 
+function buildSearchMatcher(query) {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+
+  // Support /pattern/flags syntax; default to case-insensitive if no flags given
+  let regex = null;
+  if (trimmed.startsWith("/") && trimmed.lastIndexOf("/") > 0) {
+    const lastSlash = trimmed.lastIndexOf("/");
+    const pattern = trimmed.slice(1, lastSlash);
+    const flags = trimmed.slice(lastSlash + 1) || "i";
+    try {
+      regex = new RegExp(pattern, flags);
+    } catch (error) {
+      regex = null;
+    }
+  }
+
+  if (!regex) {
+    try {
+      regex = new RegExp(trimmed, "i");
+    } catch (error) {
+      const lower = trimmed.toLowerCase();
+      return (text) => text.toLowerCase().includes(lower);
+    }
+  }
+
+  return (text) => regex.test(text);
+}
+
 const filteredData = computed(() => {
   let data = [...serialStore.receivedData];
-  
+
   // Apply Type Filter
-  if (typeFilter.value !== 'all') {
-    data = data.filter(item => item.type === typeFilter.value);
+  if (typeFilter.value !== "all") {
+    data = data.filter((item) => item.type === typeFilter.value);
   }
-  
-  // Apply Search Query
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase();
-    data = data.filter(item => 
-      item.data.toLowerCase().includes(q) || 
-      (item.port && item.port.toLowerCase().includes(q))
+
+  // Apply Search Query (supports regex)
+  const matcher = buildSearchMatcher(searchQuery.value);
+  if (matcher) {
+    data = data.filter(
+      (item) =>
+        matcher(item.data || "") || matcher(item.port ? String(item.port) : ""),
     );
   }
-  
+
   // Apply Sorting
   return data.sort((a, b) => {
     let valA = a[sortColumn.value];
@@ -139,7 +168,7 @@ onMounted(() => {
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Filter by command or port..."
+              placeholder="Filter by command or port... (supports regex, e.g. /ERR|WARN/i)"
               class="w-full h-9 rounded-md border border-input bg-background/50 pl-9 pr-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background transition-all"
             />
           </div>
