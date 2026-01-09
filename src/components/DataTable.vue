@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { useSerialStore } from "@/stores/serial";
 import { useUiStore } from "@/stores/ui";
 import { 
@@ -16,6 +16,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { 
   Table, 
   TableBody, 
@@ -139,10 +145,22 @@ watch(() => serialStore.receivedData.length, () => {
   }
 });
 
+const handleKeydown = (event) => {
+  const isCtrlS = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
+  if (!isCtrlS) return;
+  event.preventDefault();
+  serialStore.exportLogs();
+};
+
 onMounted(() => {
   if (scrollContainer.value) {
     scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight;
   }
+  window.addEventListener("keydown", handleKeydown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", handleKeydown);
 });
 </script>
 
@@ -159,10 +177,19 @@ onMounted(() => {
             <CardTitle class="text-xl font-bold tracking-tight">송수신 데이터 로그</CardTitle>
           </div>
           <div class="flex gap-2">
-            <Button variant="outline" size="sm" class="h-8 gap-2" @click="serialStore.exportLogs">
-              <DownloadIcon class="h-3.5 w-3.5" />
-              내보내기
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button variant="outline" size="sm" class="h-8 gap-2" @click="serialStore.exportLogs">
+                    <DownloadIcon class="h-3.5 w-3.5" />
+                    내보내기
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" :side-offset="6" class="text-xs">
+                  csv로 저장합니다. (Ctrl+S)
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button variant="outline" size="sm" class="h-8 gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive" @click="clearData">
               <Trash2Icon class="h-3.5 w-3.5" />
               지우기
