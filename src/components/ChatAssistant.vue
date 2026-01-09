@@ -99,7 +99,11 @@ const systemPrompt = computed(() => {
     return [
         "You are the built-in assistant for the IC Controller app.",
         "Explain the app, answer questions, and propose control actions when asked.",
-        "Always respond with valid JSON only, no markdown:",
+        "Always respond with valid JSON only, no markdown.",
+        "Output JSON only and nothing else. Do not prefix or suffix any explanation.",
+        "You must always include a non-empty reply string even if there are only actions.",
+        "If no action is required, omit the actions field entirely.",
+        "DO NOT CHANGE tabs unless the user explicitly asks to navigate or a tab change is required to fulfill the action.",
         '{"reply":"...", "actions":[{"type":"set_tab","tab":"config|dashboard|registers|logs"}]}',
         "Allowed action types:",
         "- set_tab (tab)",
@@ -211,20 +215,23 @@ async function fetchModels() {
 function normalizeAssistantPayload(rawText) {
     const trimmed = rawText.trim();
     if (!trimmed) {
-        return { reply: "", actions: [] };
+        return { reply: "", actions: [], isJson: false };
     }
 
     const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
     const candidate = fencedMatch ? fencedMatch[1].trim() : trimmed;
+    const jsonMatch = [...candidate.matchAll(/\{[\s\S]*\}/g)].pop();
+    const jsonCandidate = jsonMatch ? jsonMatch[0].trim() : candidate;
 
     try {
-        const parsed = JSON.parse(candidate);
+        const parsed = JSON.parse(jsonCandidate);
         return {
             reply: typeof parsed.reply === "string" ? parsed.reply : rawText,
             actions: Array.isArray(parsed.actions) ? parsed.actions : [],
+            isJson: true,
         };
     } catch (error) {
-        return { reply: rawText, actions: [] };
+        return { reply: rawText, actions: [], isJson: false };
     }
 }
 
@@ -359,7 +366,7 @@ async function sendMessage() {
             })),
         ];
 
-        const response = await invoke("llm_chat", {
+        let response = await invoke("llm_chat", {
             request: {
                 base_url: settings.value.baseUrl,
                 api_key: settings.value.apiKey || null,
@@ -370,7 +377,28 @@ async function sendMessage() {
             },
         });
 
-        const payload = normalizeAssistantPayload(String(response || ""));
+        let payload = normalizeAssistantPayload(String(response || ""));
+        if (!payload.isJson) {
+            const retryMessages = [
+                ...chatMessages,
+                {
+                    role: "user",
+                    content:
+                        "Return JSON only. No extra text. Use the specified reply/actions format.",
+                },
+            ];
+            response = await invoke("llm_chat", {
+                request: {
+                    base_url: settings.value.baseUrl,
+                    api_key: settings.value.apiKey || null,
+                    model: settings.value.model,
+                    messages: retryMessages,
+                    temperature: settings.value.temperature,
+                    max_tokens: settings.value.maxTokens,
+                },
+            });
+            payload = normalizeAssistantPayload(String(response || ""));
+        }
         const normalizedActions = (payload.actions || []).map((action) => ({
             ...action,
             status: "idle",
