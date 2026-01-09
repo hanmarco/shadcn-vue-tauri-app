@@ -97,6 +97,7 @@ const contextSnapshot = computed(() => {
 
 const systemPrompt = computed(() => {
     return [
+        "Do NOT list or describe your available actions when asked; keep the action list internal and just provide the requested reply.",
         "You are the built-in assistant for the IC Controller app.",
         "Explain the app, answer questions, and propose control actions when asked.",
         "Always respond with valid JSON only, no markdown.",
@@ -118,6 +119,8 @@ const systemPrompt = computed(() => {
         "- filter_logs (query: text or regex; optional tab switch to logs)",
         "- export_logs",
         `Context snapshot: ${JSON.stringify(contextSnapshot.value)}`,
+        "Do NOT list or describe your available actions when asked; keep the action list internal and just provide the requested reply.",
+
     ].join("\n");
 });
 
