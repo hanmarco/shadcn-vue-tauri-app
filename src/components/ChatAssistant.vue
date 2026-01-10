@@ -6,6 +6,7 @@ import {
     SendIcon,
     SettingsIcon,
     PanelRightIcon,
+    PanelBottomClose,
     Trash2Icon,
     XIcon,
 } from "lucide-vue-next";
@@ -818,7 +819,8 @@ async function runAction(action) {
                         size="icon-sm"
                         @click="toggleDocked"
                     >
-                        <PanelRightIcon />
+                        <PanelRightIcon v-if="!isDocked" />
+                        <PanelBottomClose v-else />
                     </Button>
                     <Button
                         variant="ghost"
