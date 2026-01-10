@@ -1042,7 +1042,7 @@ async function runAction(action) {
     <Button
         v-if="!showPanel"
         size="icon-lg"
-        class="fixed z-50 rounded-full shadow-lg"
+        class="fixed z-50 rounded-full shadow-lg bg-[oklch(0.488_0.243_264.376)] text-white hover:bg-[oklch(0.55_0.243_264.376)]"
         :class="'bottom-6 right-6'"
         @click="openPanel"
     >
