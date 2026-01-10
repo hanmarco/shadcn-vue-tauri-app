@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, computed } from "vue";
+import { onMounted, computed, ref, watch } from "vue";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -9,10 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectItem } from "@/components/ui/select";
 import { useControlStore } from "@/stores/control";
 import { useSerialStore } from "@/stores/serial";
+import { useRegisterStore } from "@/stores/registers";
 import { ActivityIcon, ZapIcon, GaugeIcon, CpuIcon, CheckIcon, LoaderIcon } from "lucide-vue-next";
+import RegisterHexController from "@/components/RegisterHexController.vue";
 
 const controlStore = useControlStore();
 const serialStore = useSerialStore();
+const registerStore = useRegisterStore();
 
 onMounted(async () => {
   await controlStore.loadControlSettings();
@@ -60,6 +63,41 @@ const clockRange = computed(() => {
   }
   return { min: 100, max: 60000, step: 100 };
 });
+
+const hexSlaveAddress = ref(0);
+const hexRegisterAddress = ref(0x01);
+const hexData = ref(0);
+
+const register01Value = computed(() => {
+  return registerStore.registers.find((reg) => reg.address === hexRegisterAddress.value)?.value;
+});
+
+watch(
+  register01Value,
+  (val) => {
+    if (typeof val === "number") {
+      hexData.value = val;
+    }
+  },
+  { immediate: true },
+);
+
+async function handleHexWrite(payload) {
+  hexSlaveAddress.value = payload.slaveAddress;
+  hexRegisterAddress.value = payload.registerAddress;
+  hexData.value = payload.data;
+  await registerStore.writeRegister(payload.registerAddress, payload.data);
+}
+
+async function handleHexRead(payload) {
+  hexSlaveAddress.value = payload.slaveAddress;
+  hexRegisterAddress.value = payload.registerAddress;
+  await registerStore.readRegister(payload.registerAddress);
+  const latest = registerStore.registers.find((reg) => reg.address === payload.registerAddress);
+  if (latest && typeof latest.value === "number") {
+    hexData.value = latest.value;
+  }
+}
 </script>
 
 <template>
@@ -112,6 +150,29 @@ const clockRange = computed(() => {
             VIRTUAL SIMULATION ACTIVE
           </p>
         </div>
+      </CardContent>
+    </Card>
+
+    <!-- Register 0x01 Quick Control -->
+    <Card class="md:col-span-2 lg:col-span-4 border-primary/20 bg-background/60 backdrop-blur-md">
+      <CardHeader class="pb-2">
+        <CardTitle class="flex items-center gap-2 text-sm font-semibold">
+          <CpuIcon class="h-4 w-4 text-primary" />
+          Register 0x01 제어
+        </CardTitle>
+        <CardDescription class="text-xs">
+          슬레이브/레지스터/데이터(HEX) 한 줄 컨트롤로 빠르게 읽기/쓰기
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <RegisterHexController
+          v-model:slave-address="hexSlaveAddress"
+          v-model:register-address="hexRegisterAddress"
+          v-model:data="hexData"
+          :disabled="!serialStore.isConnected"
+          @write="handleHexWrite"
+          @read="handleHexRead"
+        />
       </CardContent>
     </Card>
 
@@ -316,4 +377,3 @@ const clockRange = computed(() => {
     </Card>
   </div>
 </template>
-
