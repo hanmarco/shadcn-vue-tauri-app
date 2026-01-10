@@ -465,7 +465,7 @@ const handleRefresh = async () => {
           <CardDescription>모드/VIO/클럭 및 프로토콜별 파라미터 설정</CardDescription>
         </CardHeader>
         <TooltipProvider>
-        <CardContent class="space-y-6">
+        <CardContent :class="['space-y-6', serialStore.isConnected ? 'pointer-events-none opacity-60' : '']">
           <div class="grid gap-4 md:grid-cols-2">
             <div class="space-y-2">
               <label class="text-sm font-medium flex items-center gap-1">
@@ -969,7 +969,7 @@ const handleRefresh = async () => {
           </CardTitle>
           <CardDescription>FTDI 장치 채널 및 하드웨어 모드 설정</CardDescription>
         </CardHeader>
-        <CardContent class="space-y-6">
+        <CardContent :class="['space-y-6', serialStore.isConnected ? 'pointer-events-none opacity-60' : '']">
           <div class="grid gap-6 md:grid-cols-2">
             <!-- Channel Selection -->
             <div class="space-y-2">
@@ -1033,7 +1033,7 @@ const handleRefresh = async () => {
           </CardTitle>
           <CardDescription>FT260 HID to I2C/UART Bridge 설정</CardDescription>
         </CardHeader>
-        <CardContent class="space-y-6">
+        <CardContent :class="['space-y-6', serialStore.isConnected ? 'pointer-events-none opacity-60' : '']">
           <div class="grid gap-6 md:grid-cols-2">
             <!-- Mode Selection -->
             <div class="space-y-2">

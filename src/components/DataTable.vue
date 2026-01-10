@@ -11,7 +11,8 @@ import {
   FilterIcon,
   ZapIcon,
   RadioIcon,
-  DatabaseIcon
+  DatabaseIcon,
+  XIcon
 } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -206,8 +207,17 @@ onBeforeUnmount(() => {
               v-model="searchQuery"
               type="text"
               placeholder="Filter by command or port... (supports regex, e.g. /ERR|WARN/i)"
-              class="w-full h-9 rounded-md border border-input bg-background/50 pl-9 pr-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background transition-all"
+              class="w-full h-9 rounded-md border border-input bg-background/50 pl-9 pr-10 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background transition-all"
             />
+            <button
+              v-if="searchQuery"
+              type="button"
+              @click="searchQuery = ''"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              aria-label="Clear search"
+            >
+              <XIcon class="h-3.5 w-3.5" />
+            </button>
           </div>
 
           <!-- Type Filters -->
