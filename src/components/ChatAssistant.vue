@@ -806,34 +806,68 @@ async function runAction(action) {
         >
             <div class="flex items-center justify-between border-b px-4 py-3">
                 <div class="text-sm font-semibold">LLM Assistant</div>
-                <div class="flex items-center gap-1">
-                    <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        @click="showSettings = !showSettings"
-                    >
-                        <SettingsIcon />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        @click="toggleDocked"
-                    >
-                        <PanelRightIcon v-if="!isDocked" />
-                        <PanelBottomClose v-else />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        :disabled="!messages.length"
-                        @click="clearMessages"
-                    >
-                        <Trash2Icon />
-                    </Button>
-                    <Button variant="ghost" size="icon-sm" @click="closePanel">
-                        <XIcon />
-                    </Button>
-                </div>
+                <TooltipProvider :key="isDocked ? 'docked-tooltips' : 'popup-tooltips'">
+                    <div class="flex items-center gap-1">
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    @click="showSettings = !showSettings"
+                                >
+                                    <SettingsIcon />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" align="center" position-strategy="fixed" class="z-[9999]">
+                                설정
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    @click="toggleDocked"
+                                >
+                                    <PanelRightIcon v-if="!isDocked" />
+                                    <PanelBottomClose v-else />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" align="center" position-strategy="fixed" class="z-[9999]">
+                                {{ isDocked ? "팝업으로 전환" : "패널로 전환" }}
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    :disabled="!messages.length"
+                                    @click="clearMessages"
+                                >
+                                    <Trash2Icon />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" align="center" position-strategy="fixed" class="z-[9999]">
+                                대화 지우기
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    @click="closePanel"
+                                >
+                                    <XIcon />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" align="center" position-strategy="fixed" class="z-[9999]">
+                                닫기
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                </TooltipProvider>
             </div>
 
             <div v-if="showSettings" class="border-b px-4 py-3 space-y-3">
