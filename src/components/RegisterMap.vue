@@ -19,6 +19,7 @@ import {
     CpuIcon,
     BinaryIcon,
     InfoIcon,
+    XIcon,
 } from "lucide-vue-next";
 
 const registerStore = useRegisterStore();
@@ -268,11 +269,21 @@ function getFieldValue(regValue, field) {
                             class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
                         />
                         <input
-                            v-model="searchQuery"
+                            :value="searchQuery"
+                            @input="searchQuery = $event.target.value"
                             type="text"
                             placeholder="Search registers (Name/Addr)..."
-                            class="w-full rounded-md border border-input bg-background pl-9 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                            class="w-full rounded-md border border-input bg-background pl-9 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                         />
+                        <button
+                            v-if="searchQuery"
+                            type="button"
+                            @click="searchQuery = ''"
+                            class="absolute right-2.5 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                            aria-label="Clear search"
+                        >
+                            <XIcon class="h-3.5 w-3.5" />
+                        </button>
                     </div>
                 </CardHeader>
                 <CardContent class="p-0 flex flex-1 overflow-hidden">

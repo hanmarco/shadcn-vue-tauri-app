@@ -204,7 +204,8 @@ onBeforeUnmount(() => {
           <div class="relative flex-1 group">
             <SearchIcon class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <input
-              v-model="searchQuery"
+              :value="searchQuery"
+              @input="searchQuery = $event.target.value"
               type="text"
               placeholder="Filter by command or port... (supports regex, e.g. /ERR|WARN/i)"
               class="w-full h-9 rounded-md border border-input bg-background/50 pl-9 pr-10 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background transition-all"
