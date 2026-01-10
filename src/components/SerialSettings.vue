@@ -132,7 +132,7 @@ const handleRefresh = async () => {
   <div class="m-6 pb-12 grid gap-6 grid-cols-[400px_1fr] items-start">
     <div class="space-y-6">
       <!-- 통신 모드 선택 (공통) -->
-      <Card :class="['border-primary/20 transition-colors h-fit', serialStore.isConnected ? 'bg-muted/50 opacity-70' : 'bg-primary/2']">
+      <Card :class="['transition-colors h-fit', serialStore.isConnected ? 'bg-muted/50 opacity-80' : '']">
         <CardHeader class="pb-3">
           <div class="flex items-center justify-between">
             <div class="space-y-1">
@@ -142,7 +142,7 @@ const handleRefresh = async () => {
               </CardTitle>
               <CardDescription>사용할 하드웨어 인터페이스 타입을 선택하세요</CardDescription>
             </div>
-            <Badge variant="outline" class="bg-primary/10 text-primary border-primary/20 uppercase tracking-widest text-[10px] font-bold">
+            <Badge variant="outline" class="bg-primary/10 text-primary uppercase tracking-widest text-[10px] font-bold">
               {{ serialStore.deviceType }} mode
             </Badge>
           </div>
