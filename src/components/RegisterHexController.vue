@@ -94,6 +94,62 @@ function updateRegister(event) {
   emit("update:registerAddress", registerAddress.value);
 }
 
+function stepSlave(delta) {
+  const next = clampByte(slaveAddress.value + delta);
+  slaveHex.value = toHex(next);
+  slaveAddress.value = next;
+  emit("update:slaveAddress", next);
+}
+
+function stepRegister(delta) {
+  const next = clampByte(registerAddress.value + delta);
+  registerHex.value = toHex(next);
+  registerAddress.value = next;
+  emit("update:registerAddress", next);
+}
+
+function updateSlaveHexInput(event) {
+  const raw = String(event?.target?.value ?? "").toUpperCase();
+  const cleaned = raw.replace(/[^0-9A-F]/g, "");
+  if (!cleaned.length) {
+    slaveHex.value = "";
+    slaveAddress.value = 0;
+    emit("update:slaveAddress", slaveAddress.value);
+    return;
+  }
+  const trimmed = cleaned.slice(-2);
+  if (trimmed.length === 1) {
+    slaveHex.value = trimmed;
+    return;
+  }
+  const finalHex = trimmed;
+  const next = Number.parseInt(finalHex, 16);
+  slaveHex.value = finalHex;
+  slaveAddress.value = clampByte(next);
+  emit("update:slaveAddress", slaveAddress.value);
+}
+
+function updateRegisterHexInput(event) {
+  const raw = String(event?.target?.value ?? "").toUpperCase();
+  const cleaned = raw.replace(/[^0-9A-F]/g, "");
+  if (!cleaned.length) {
+    registerHex.value = "";
+    registerAddress.value = 0;
+    emit("update:registerAddress", registerAddress.value);
+    return;
+  }
+  const trimmed = cleaned.slice(-2);
+  if (trimmed.length === 1) {
+    registerHex.value = trimmed;
+    return;
+  }
+  const finalHex = trimmed;
+  const next = Number.parseInt(finalHex, 16);
+  registerHex.value = finalHex;
+  registerAddress.value = clampByte(next);
+  emit("update:registerAddress", registerAddress.value);
+}
+
 function setDataValue(val, shouldEmit = true, hexOverride) {
   const next = clampByte(val);
   dataValue.value = next;
@@ -169,30 +225,30 @@ function handleRead() {
         <template v-if="props.showSlave">
           <Tooltip>
             <TooltipTrigger as-child>
-              <div class="flex items-center gap-1 rounded-sm border border-input bg-background/70 px-1 py-0.5">
-                <div class="relative">
-                  <span class="pointer-events-none absolute left-0.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">0x</span>
-                  <input
-                    :value="slaveHex"
-                    @input="updateSlave($event.target.value)"
-                    maxlength="2"
-                    class="w-9 h-6 rounded-sm border border-input bg-background pl-4 pr-1 text-[11px] font-mono uppercase focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
+            <div class="flex items-center gap-1 rounded-sm border border-input bg-background/70 px-1 py-0.5">
+              <div class="relative">
+                <span class="pointer-events-none absolute left-0.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">0x</span>
                 <input
-                  :value="slaveAddress"
-                  @input="updateSlave"
-                  type="number"
-                  min="0"
-                  max="255"
-                  step="1"
-                  class="w-4 h-6 min-w-[1rem] text-transparent caret-transparent selection:bg-transparent bg-transparent border border-input rounded-sm appearance-auto p-0 focus:outline-none focus:ring-1 focus:ring-primary"
+                  :value="slaveHex"
+                  @input="updateSlaveHexInput"
+                  maxlength="2"
+                  class="w-9 h-6 rounded-sm border border-input bg-background pl-4 pr-1 text-[11px] font-mono uppercase focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" align="center" class="text-xs">
-              슬레이브 주소(0x00~0xFF)
-            </TooltipContent>
+              <input
+                :value="slaveAddress"
+                @input="updateSlave"
+                type="number"
+                min="0"
+                max="255"
+                step="1"
+                class="w-4 h-6 min-w-[1rem] text-transparent caret-transparent selection:bg-transparent bg-transparent border border-input rounded-sm appearance-auto p-0 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center" class="text-xs">
+            슬레이브 주소(0x00~0xFF)
+          </TooltipContent>
           </Tooltip>
         </template>
 
@@ -201,30 +257,30 @@ function handleRead() {
         <template v-if="props.showRegister">
           <Tooltip>
             <TooltipTrigger as-child>
-              <div class="flex items-center gap-1 rounded-sm border border-input bg-background/70 px-1 py-0.5">
-                <div class="relative">
-                  <span class="pointer-events-none absolute left-0.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">0x</span>
-                  <input
-                    :value="registerHex"
-                    @input="updateRegister($event.target.value)"
-                    maxlength="2"
-                    class="w-9 h-6 rounded-sm border border-input bg-background pl-4 pr-1 text-[11px] font-mono uppercase focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
+            <div class="flex items-center gap-1 rounded-sm border border-input bg-background/70 px-1 py-0.5">
+              <div class="relative">
+                <span class="pointer-events-none absolute left-0.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">0x</span>
                 <input
-                  :value="registerAddress"
-                  @input="updateRegister"
-                  type="number"
-                  min="0"
-                  max="255"
-                  step="1"
-                  class="w-4 h-6 min-w-[1rem] text-transparent caret-transparent selection:bg-transparent bg-transparent border border-input rounded-sm appearance-auto p-0 focus:outline-none focus:ring-1 focus:ring-primary"
+                  :value="registerHex"
+                  @input="updateRegisterHexInput"
+                  maxlength="2"
+                  class="w-9 h-6 rounded-sm border border-input bg-background pl-4 pr-1 text-[11px] font-mono uppercase focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" align="center" class="text-xs">
-              레지스터 주소(0x00~0xFF)
-            </TooltipContent>
+              <input
+                :value="registerAddress"
+                @input="updateRegister"
+                type="number"
+                min="0"
+                max="255"
+                step="1"
+                class="w-4 h-6 min-w-[1rem] text-transparent caret-transparent selection:bg-transparent bg-transparent border border-input rounded-sm appearance-auto p-0 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center" class="text-xs">
+            레지스터 주소(0x00~0xFF)
+          </TooltipContent>
           </Tooltip>
         </template>
 
