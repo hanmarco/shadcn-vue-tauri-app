@@ -6,6 +6,7 @@ import ControlPanel from "@/components/ControlPanel.vue";
 import DataTable from "@/components/DataTable.vue";
 import RegisterMap from "@/components/RegisterMap.vue";
 import ChatAssistant from "@/components/ChatAssistant.vue";
+import GeneralPanel from "@/components/GeneralPanel.vue";
 
 import { Toaster } from "@/components/ui/sonner";
 import { useUiStore } from "@/stores/ui";
@@ -20,6 +21,10 @@ const viewMap = {
     },
     dashboard: {
         component: ControlPanel,
+        className: "h-full overflow-y-auto",
+    },
+    general: {
+        component: GeneralPanel,
         className: "h-full overflow-y-auto",
     },
     registers: {

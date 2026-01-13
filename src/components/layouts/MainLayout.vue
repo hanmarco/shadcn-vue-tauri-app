@@ -70,6 +70,7 @@ const handleTabClick = (tab) => {
     uiStore.isScreenTransitionEnabled = false;
     emit("update:activeTab", tab);
 };
+
 </script>
 
 <template>
@@ -156,6 +157,13 @@ const handleTabClick = (tab) => {
                         >
                             <LayoutDashboardIcon class="mr-2 h-4 w-4" />
                             <span>Dashboard</span>
+                        </SidebarItem>
+                        <SidebarItem
+                            :active="activeTab === 'general'"
+                            @click="handleTabClick('general')"
+                        >
+                            <CpuIcon class="mr-2 h-4 w-4" />
+                            <span>General Panel</span>
                         </SidebarItem>
                         <SidebarItem
                             :active="activeTab === 'registers'"

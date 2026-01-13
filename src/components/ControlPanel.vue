@@ -6,7 +6,6 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Select, SelectItem } from "@/components/ui/select";
 import { useControlStore } from "@/stores/control";
 import { useSerialStore } from "@/stores/serial";
 import { useRegisterStore } from "@/stores/registers";
