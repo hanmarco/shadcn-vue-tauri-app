@@ -51,6 +51,9 @@ const scrollRef = ref(null);
 const isDocked = ref(false);
 const preferredDocked = ref(false);
 const dockedClassName = "chat-docked";
+const showActionFx = ref(false);
+const actionFxKey = ref(0);
+let actionFxTimer = null;
 
 const showPanel = computed(() => isOpen.value);
 const isDockedActive = computed(() => isDocked.value && isOpen.value);
@@ -198,6 +201,25 @@ onUnmounted(() => {
     if (typeof document === "undefined") return;
     document.body.classList.remove(dockedClassName);
 });
+onUnmounted(() => {
+    if (actionFxTimer) {
+        clearTimeout(actionFxTimer);
+        actionFxTimer = null;
+    }
+});
+
+function triggerActionFx() {
+    showActionFx.value = false;
+    actionFxKey.value += 1;
+    showActionFx.value = true;
+    if (actionFxTimer) {
+        clearTimeout(actionFxTimer);
+    }
+    actionFxTimer = setTimeout(() => {
+        showActionFx.value = false;
+        actionFxTimer = null;
+    }, 500);
+}
 
 async function fetchModels() {
     modelError.value = "";
@@ -635,6 +657,7 @@ watch(autoApproved, (value) => {
 async function runAction(action) {
     if (!action || action.status === "running") return;
 
+    triggerActionFx();
     action.status = "running";
     try {
         switch (action.type) {
@@ -1092,4 +1115,46 @@ async function runAction(action) {
             />
         </svg>
     </Button>
+
+    <div
+        v-if="showActionFx"
+        :key="actionFxKey"
+        class="ai-action-overlay"
+        aria-hidden="true"
+    >
+        <div class="ai-action-sweep"></div>
+    </div>
 </template>
+
+<style scoped>
+.ai-action-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 60;
+    overflow: hidden;
+}
+
+.ai-action-sweep {
+    position: absolute;
+    inset: -30%;
+    background: linear-gradient(
+        45deg,
+        rgba(59, 130, 246, 0.2),
+        rgba(59, 130, 246, 0)
+    );
+    animation: ai-action-sweep 500ms ease-out forwards;
+    transform: translate(-30%, 30%);
+}
+
+@keyframes ai-action-sweep {
+    0% {
+        opacity: 0.2;
+        transform: translate(-30%, 30%);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(30%, -30%);
+    }
+}
+</style>
